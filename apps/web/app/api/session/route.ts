@@ -4,7 +4,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import { SessionCreateSchema } from '@/lib/schemas';
 import { createSessionToken } from '@/lib/api-auth';
 import { rateLimit } from '@/lib/rate-limit';
-import { api } from '../../../../convex/_generated/api';
+import { api } from '../../../../../convex/_generated/api';
 
 export const maxDuration = 60;
 

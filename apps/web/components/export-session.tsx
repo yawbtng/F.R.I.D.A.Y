@@ -199,7 +199,7 @@ export function ExportSession({ session, className = '' }: ExportSessionProps) {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="absolute right-0 top-full mt-2 w-44 py-1 rounded-lg bg-friday-secondary border border-friday-border shadow-md z-50"
+            className="absolute right-0 top-full mt-2 w-44 py-1 rounded-lg glass-heavy shadow-glass-elevated z-50"
             initial={{ opacity: 0, y: -4, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.96 }}
@@ -207,7 +207,7 @@ export function ExportSession({ session, className = '' }: ExportSessionProps) {
           >
             <button
               onClick={() => handleExport('markdown')}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors text-left"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.06] transition-all duration-150 text-left"
             >
               <svg
                 className="w-4 h-4 text-friday-text-muted"
@@ -227,7 +227,7 @@ export function ExportSession({ session, className = '' }: ExportSessionProps) {
             </button>
             <button
               onClick={() => handleExport('json')}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors text-left"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.06] transition-all duration-150 text-left"
             >
               <svg
                 className="w-4 h-4 text-friday-text-muted"

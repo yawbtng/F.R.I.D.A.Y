@@ -36,7 +36,7 @@ export function BrowserPreview({
     <div className="flex flex-col gap-3">
       {/* Browser Window */}
       <motion.div
-        className="rounded-xl border border-friday-border overflow-hidden bg-friday-surface"
+        className="rounded-xl glass-heavy glass-highlight overflow-hidden"
         animate={
           isLoading
             ? {
@@ -55,7 +55,7 @@ export function BrowserPreview({
         }
       >
         {/* Title Bar — macOS-style chrome */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-friday-secondary border-b border-friday-border">
+        <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] border-b border-white/[0.06] backdrop-blur-xl">
           {/* Traffic lights */}
           <div className="flex items-center gap-[6px] shrink-0">
             <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
@@ -65,7 +65,7 @@ export function BrowserPreview({
 
           {/* URL bar */}
           <div className="flex-1 min-w-0 mx-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-friday-bg/60 rounded-md border border-friday-border">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] rounded-md border border-white/[0.06]">
               {/* Lock icon */}
               <svg
                 className="w-3.5 h-3.5 text-friday-text-tertiary shrink-0"
@@ -177,7 +177,7 @@ export function BrowserPreview({
       {/* Controls bar */}
       <div className="flex items-center justify-between px-1">
         {/* Mode toggle */}
-        <div className="flex items-center gap-1 bg-friday-secondary rounded-lg p-1 border border-friday-border">
+        <div className="flex items-center gap-1 glass rounded-lg p-1">
           <button
             onClick={() => setMode('live')}
             className={`

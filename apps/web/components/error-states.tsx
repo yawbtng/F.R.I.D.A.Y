@@ -71,7 +71,7 @@ function WifiOffIcon({ className = '' }: { className?: string }) {
 function ErrorWrapper({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
-      className="flex items-center gap-3 px-4 py-3 rounded-lg bg-friday-secondary border border-friday-border"
+      className="flex items-center gap-3 px-4 py-3 rounded-lg glass"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
@@ -145,7 +145,7 @@ export function NavigationError({ message, suggestion, onRetry }: NavigationErro
       {onRetry && (
         <button
           onClick={onRetry}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-friday-accent bg-friday-accent/10 hover:bg-friday-accent/20 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-friday-accent glass-subtle hover:bg-friday-accent/15 transition-all duration-200"
         >
           <RefreshIcon className="text-friday-accent" />
           Try again
@@ -242,7 +242,7 @@ export function GenericError({ message, actionLabel, onAction }: GenericErrorPro
       {actionLabel && onAction && (
         <button
           onClick={onAction}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-friday-accent bg-friday-accent/10 hover:bg-friday-accent/20 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-friday-accent glass-subtle hover:bg-friday-accent/15 transition-all duration-200 whitespace-nowrap"
         >
           {actionLabel}
         </button>

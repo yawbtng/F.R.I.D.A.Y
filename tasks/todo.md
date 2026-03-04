@@ -23,23 +23,23 @@
 - [x] #16 — Agent tests: smoke + tool unit tests (12 tests)
 
 ## Phase 3: Convex Persistence (Due: Mar 21)
-- [ ] #17 — Convex setup + schema
-- [ ] #18 — Convex mutations/queries
-- [ ] #19 — Convex integration: provider, saving, screenshots
-- [ ] #20 — Session sidebar + command feed
+- [x] #17 — Convex setup + schema
+- [x] #18 — Convex mutations/queries
+- [x] #19 — Convex integration: provider, saving, screenshots
+- [x] #20 — Session sidebar + command feed
 - [ ] #21 — **GATE**: Refresh page → session history visible
 
 ## Phase 4: Polish + Browser Preview (Due: Mar 26)
-- [ ] #22 — Browser preview: iframe/screenshot + fake chrome
-- [ ] #23 — 3-column layout shell
-- [ ] #24 — Audio orb visualizer
-- [ ] #25 — Example commands + dark theme + design tokens
-- [ ] #26 — Framer Motion animations + responsive
-- [ ] #27 — Loading states, error states, session export
+- [x] #22 — Browser preview: iframe/screenshot + fake chrome
+- [x] #23 — 3-column layout shell
+- [x] #24 — Audio orb visualizer
+- [x] #25 — Example commands + dark theme + design tokens
+- [x] #26 — Framer Motion animations + responsive
+- [x] #27 — Loading states, error states, session export
 - [ ] #28 — **GATE**: UI is demo-quality
 
 ## Phase 5: Deploy + Demo Prep (Due: Mar 30)
-- [ ] #29 — Landing page
+- [x] #29 — Landing page
 - [ ] #30 — Deploy Convex + agent worker
 - [ ] #31 — Deploy Next.js to Vercel
 - [ ] #32 — README + .env.example
@@ -66,4 +66,5 @@
 ```
 
 ## Lessons Learned
-<!-- Add entries after corrections/mistakes -->
+- **Be explicit about tool limitations**: If user asks to use an external tool (like `ao`) that I can't execute, say so immediately. Don't silently substitute with a different mechanism. Explain the tradeoff and let the user decide.
+- **Don't fake familiarity**: Knowing about a tool ≠ having access to it. Acknowledge the difference upfront.

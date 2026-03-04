@@ -65,9 +65,9 @@ export function SessionSidebar({
   const sessions = useQuery(api.sessions.list);
 
   return (
-    <div className="h-full flex flex-col bg-friday-surface border-r border-friday-border">
+    <div className="h-full flex flex-col glass border-r border-white/[0.06]">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-friday-border">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.06]">
         {!collapsed && (
           <span className="text-sm font-semibold text-friday-text-primary tracking-wide uppercase">
             Sessions
@@ -94,7 +94,7 @@ export function SessionSidebar({
         <div className="px-3 pt-3">
           <button
             onClick={onNewSession}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-friday-accent text-white text-xs font-semibold tracking-wide hover:bg-friday-accent-hover transition-colors shadow-glow"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-friday-accent/90 backdrop-blur-sm text-white text-xs font-semibold tracking-wide hover:bg-friday-accent-hover transition-all duration-200 shadow-glow hover:shadow-[0_0_24px_var(--accent-glow)] hover:scale-[1.02]"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -125,7 +125,7 @@ export function SessionSidebar({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-14 rounded-md bg-friday-tertiary/40 animate-pulse"
+                className="h-14 rounded-md glass-subtle animate-pulse"
               />
             ))}
           </div>
@@ -149,12 +149,11 @@ export function SessionSidebar({
                 variants={cardVariants}
                 onClick={() => onSelectSession?.(session._id)}
                 className={`
-                  w-full text-left rounded-md px-3 py-2.5 transition-colors
-                  border border-transparent
+                  w-full text-left rounded-lg px-3 py-2.5 transition-all duration-200
                   ${
                     isActive
-                      ? 'bg-friday-tertiary border-friday-border-active'
-                      : 'hover:bg-friday-tertiary/60'
+                      ? 'glass-heavy border-friday-accent/30 shadow-[0_0_12px_rgba(59,130,246,0.1)]'
+                      : 'border border-transparent hover:bg-white/[0.04] hover:border-white/[0.06]'
                   }
                 `}
               >

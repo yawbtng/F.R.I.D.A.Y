@@ -119,7 +119,7 @@ function StatusIcon({ status }: { status: CommandStatus }) {
 
 function ToolBadge({ name }: { name: string }) {
   return (
-    <span className="inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-friday-tertiary text-friday-text-accent border border-friday-border">
+    <span className="inline-block text-[10px] font-mono px-1.5 py-0.5 rounded glass-subtle text-friday-text-accent">
       {name}
     </span>
   );
@@ -134,7 +134,7 @@ function ScreenshotThumbnail({
   if (!url) return null;
 
   return (
-    <div className="mt-1.5 rounded-md overflow-hidden border border-friday-border max-w-[200px]">
+    <div className="mt-1.5 rounded-md overflow-hidden border border-white/[0.08] max-w-[200px]">
       <img
         src={url}
         alt="Screenshot"
@@ -177,7 +177,7 @@ function CommandEntry({ command }: { command: Command }) {
     >
       {/* User input — right aligned */}
       <div className="flex justify-end">
-        <div className="max-w-[85%] px-3 py-2 rounded-lg bg-friday-tertiary text-xs text-friday-text-primary">
+        <div className="max-w-[85%] px-3 py-2 rounded-lg glass text-xs text-friday-text-primary">
           {command.input}
         </div>
       </div>
@@ -248,10 +248,13 @@ interface MissionLogProps {
 export function MissionLog({ sessionId, error, onErrorRetry, exportData }: MissionLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Query commands (returns desc, we reverse for chronological order)
+  // Only query if sessionId looks like a Convex document ID (not a Browserbase UUID).
+  // Convex IDs are short alphanumeric strings; Browserbase IDs are UUIDs with dashes.
+  const isConvexId = sessionId && !sessionId.includes('-');
+
   const rawCommands = useQuery(
     api.commands.listBySession,
-    sessionId ? { sessionId: sessionId as Id<'sessions'> } : 'skip',
+    isConvexId ? { sessionId: sessionId as Id<'sessions'> } : 'skip',
   );
 
   const commands = useMemo(
@@ -275,9 +278,9 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
   }, [commands]);
 
   return (
-    <div className="h-full flex flex-col bg-friday-surface border-l border-friday-border">
+    <div className="h-full flex flex-col glass border-l border-white/[0.06]">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-friday-border">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.06]">
         <span className="text-sm font-semibold text-friday-text-primary tracking-wide uppercase">
           Mission Log
         </span>
@@ -359,7 +362,7 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
             {[1, 2].map((i) => (
               <div
                 key={i}
-                className="h-10 rounded-md bg-friday-tertiary/40 animate-pulse"
+                className="h-10 rounded-md glass-subtle animate-pulse"
               />
             ))}
           </div>
@@ -375,7 +378,7 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
       </div>
 
       {/* Example commands */}
-      <div className="flex-shrink-0 border-t border-friday-border px-4 py-3">
+      <div className="flex-shrink-0 border-t border-white/[0.06] px-4 py-3">
         <p className="text-[10px] uppercase tracking-wider text-friday-text-tertiary mb-2 font-semibold">
           Try saying
         </p>
@@ -387,7 +390,7 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
           ].map((cmd) => (
             <div
               key={cmd}
-              className="text-xs text-friday-text-secondary font-mono px-2.5 py-1.5 bg-friday-tertiary rounded-md border border-friday-border"
+              className="text-xs text-friday-text-secondary font-mono px-2.5 py-1.5 glass-subtle rounded-md hover:bg-white/[0.06] transition-all duration-150"
             >
               &ldquo;{cmd}&rdquo;
             </div>

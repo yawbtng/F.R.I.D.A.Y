@@ -26,7 +26,7 @@ const stagger = {
 
 function Nav() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-friday-border/40 bg-friday-bg/60 backdrop-blur-xl supports-[backdrop-filter]:bg-friday-bg/40">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass glass-highlight">
       <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-14">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-friday-accent shadow-glow" />
@@ -45,7 +45,7 @@ function Nav() {
           </a>
           <Link
             href="/workspace"
-            className="text-sm font-medium px-4 py-1.5 rounded-full bg-friday-accent text-white hover:bg-friday-accent-hover transition-colors duration-150 shadow-glow focus-ring"
+            className="text-sm font-medium px-4 py-1.5 rounded-full bg-friday-accent/90 backdrop-blur-sm text-white hover:bg-friday-accent-hover transition-all duration-200 shadow-glow hover:shadow-[0_0_30px_var(--accent-glow)] focus-ring"
           >
             Try Friday &rarr;
           </Link>
@@ -105,67 +105,73 @@ function HeroOrb() {
 function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-14">
-      {/* Shader ripple background — fades on scroll */}
+      {/* WebGL shader background — fills hero, fades on scroll */}
       <ShaderBackground />
 
       <HeroOrb />
+
+      {/* Glass card containing all hero content */}
       <motion.div
-        className="relative z-10 text-center px-6 max-w-3xl mx-auto"
+        className="relative z-10 mx-6 max-w-4xl w-full rounded-2xl glass-heavy glass-highlight glass-noise px-8 py-14 sm:px-14 sm:py-20"
         variants={stagger}
         initial="hidden"
         animate="visible"
       >
-        {/* Badge */}
-        <motion.div
-          variants={fadeUp}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-friday-border/60 bg-friday-secondary/40 backdrop-blur-sm text-xs text-friday-text-secondary mb-8"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-friday-accent" />
-          Powered by Browserbase + Stagehand
-        </motion.div>
-
-        {/* Headline */}
-        <motion.h1
-          variants={fadeUp}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-friday-text-primary leading-[1.1]"
-        >
-          Your AI co-pilot
-          <br />
-          for the web.
-        </motion.h1>
-
-        {/* Subheadline */}
-        <motion.p
-          variants={fadeUp}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="mt-6 text-lg sm:text-xl text-friday-text-secondary max-w-xl mx-auto leading-relaxed"
-        >
-          Speak. Browse. Extract. All by voice.
-        </motion.p>
-
-        {/* CTAs */}
-        <motion.div
-          variants={fadeUp}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
-        >
-          <Link
-            href="/workspace"
-            className="px-8 py-3 rounded-full bg-friday-accent text-white font-medium text-sm hover:bg-friday-accent-hover transition-colors duration-150 shadow-glow focus-ring"
+        <div className="text-center">
+          {/* Badge */}
+          <motion.div
+            variants={fadeUp}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full glass text-sm text-friday-text-secondary mb-10"
           >
-            Try Friday &rarr;
-          </Link>
-          <a
-            href="https://github.com/yawbtng/F.R.I.D.A.Y"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-8 py-3 rounded-full border border-friday-border text-friday-text-secondary text-sm font-medium hover:border-friday-border-hover hover:text-friday-text-primary transition-colors duration-150 focus-ring"
+            <span className="w-2 h-2 rounded-full bg-friday-accent animate-pulse" />
+            Powered by Browserbase + Stagehand
+          </motion.div>
+
+          {/* Headline — larger */}
+          <motion.h1
+            variants={fadeUp}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="text-5xl sm:text-7xl md:text-8xl font-bold tracking-tight text-friday-text-primary leading-[1.05]"
           >
-            View on GitHub
-          </a>
-        </motion.div>
+            Your AI co-pilot
+            <br />
+            <span className="bg-gradient-to-r from-friday-accent to-blue-400 bg-clip-text text-transparent">
+              for the web.
+            </span>
+          </motion.h1>
+
+          {/* Subheadline — larger */}
+          <motion.p
+            variants={fadeUp}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="mt-8 text-xl sm:text-2xl text-friday-text-secondary max-w-2xl mx-auto leading-relaxed"
+          >
+            Speak a command. Watch a cloud browser execute it. Hear the result.
+          </motion.p>
+
+          {/* CTAs — larger */}
+          <motion.div
+            variants={fadeUp}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
+          >
+            <Link
+              href="/workspace"
+              className="px-10 py-4 rounded-full bg-friday-accent/90 backdrop-blur-sm text-white font-semibold text-base hover:bg-friday-accent-hover transition-all duration-200 shadow-glow hover:shadow-[0_0_30px_var(--accent-glow)] hover:scale-[1.02] focus-ring"
+            >
+              Try Friday &rarr;
+            </Link>
+            <a
+              href="https://github.com/yawbtng/F.R.I.D.A.Y"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-10 py-4 rounded-full glass glass-hover text-friday-text-secondary font-medium text-base hover:text-friday-text-primary transition-all duration-200 focus-ring"
+            >
+              View on GitHub
+            </a>
+          </motion.div>
+        </div>
       </motion.div>
     </section>
   );
@@ -182,7 +188,7 @@ function GradientDivider() {
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.2) 30%, rgba(59,130,246,0.3) 50%, rgba(59,130,246,0.2) 70%, transparent 100%)',
+            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 20%, rgba(59,130,246,0.25) 50%, rgba(255,255,255,0.06) 80%, transparent 100%)',
         }}
       />
     </div>
@@ -204,7 +210,7 @@ function Demo() {
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="text-3xl sm:text-4xl font-bold text-friday-text-primary mb-4"
+          className="text-4xl sm:text-5xl md:text-6xl font-bold text-friday-text-primary mb-6"
         >
           See it in action
         </motion.h2>
@@ -212,7 +218,7 @@ function Demo() {
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4, ease: 'easeOut', delay: 0.08 }}
-          className="text-friday-text-secondary mb-16 max-w-md mx-auto"
+          className="text-lg sm:text-xl text-friday-text-secondary mb-16 max-w-lg mx-auto"
         >
           Watch Friday navigate, search, and extract data from the web.
         </motion.p>
@@ -223,7 +229,7 @@ function Demo() {
           transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
         >
           <motion.div
-            className="relative rounded-xl border border-friday-border bg-friday-secondary overflow-hidden shadow-md"
+            className="relative rounded-xl glass-heavy glass-highlight overflow-hidden"
             animate={inView ? { y: [0, -6, 0] } : {}}
             transition={{
               duration: 4,
@@ -233,14 +239,14 @@ function Demo() {
             }}
           >
             {/* Browser chrome mockup */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-friday-border bg-friday-surface">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.03] backdrop-blur-xl">
               <div className="flex gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-friday-error/60" />
                 <div className="w-3 h-3 rounded-full bg-friday-pending/60" />
                 <div className="w-3 h-3 rounded-full bg-friday-active/60" />
               </div>
               <div className="flex-1 mx-4">
-                <div className="h-6 rounded-md bg-friday-tertiary border border-friday-border flex items-center px-3">
+                <div className="h-6 rounded-md bg-white/[0.04] border border-white/[0.06] flex items-center px-3">
                   <span className="text-xs text-friday-text-muted font-mono">
                     news.ycombinator.com
                   </span>
@@ -248,9 +254,9 @@ function Demo() {
               </div>
             </div>
             {/* Content area placeholder */}
-            <div className="aspect-video bg-friday-bg flex items-center justify-center">
+            <div className="aspect-video bg-friday-bg/60 flex items-center justify-center">
               <div className="text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-friday-accent/10 border border-friday-accent/20 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-full glass flex items-center justify-center mx-auto">
                   <svg
                     className="w-5 h-5 text-friday-accent"
                     viewBox="0 0 24 24"
@@ -333,12 +339,12 @@ function Capabilities() {
 
   return (
     <section ref={ref} className="py-32 px-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="text-3xl sm:text-4xl font-bold text-friday-text-primary text-center mb-4"
+          className="text-4xl sm:text-5xl md:text-6xl font-bold text-friday-text-primary text-center mb-6"
         >
           Four capabilities. One voice.
         </motion.h2>
@@ -346,33 +352,46 @@ function Capabilities() {
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4, ease: 'easeOut', delay: 0.1 }}
-          className="text-friday-text-secondary text-center mb-16 max-w-lg mx-auto"
+          className="text-lg sm:text-xl text-friday-text-secondary text-center mb-20 max-w-2xl mx-auto"
         >
           Everything you need to control a browser, without touching a keyboard.
         </motion.p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Bento grid — first two cards are tall, last two side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {capabilities.map((cap, i) => (
             <motion.div
               key={cap.title}
-              initial={{ opacity: 0, y: 24 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
+              initial={{ opacity: 0, y: 30, scale: 0.97 }}
+              animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
               transition={{
-                duration: 0.4,
-                ease: 'easeOut',
+                duration: 0.5,
+                ease: [0.25, 0.1, 0.25, 1],
                 delay: 0.15 + i * 0.1,
               }}
-              className="group rounded-xl border border-friday-border bg-friday-secondary/40 p-6 hover:border-friday-border-hover hover:bg-friday-secondary/60 transition-all duration-150"
+              className={`group relative rounded-2xl glass glass-hover glass-highlight glass-noise overflow-hidden transition-all duration-300 hover:scale-[1.02] ${
+                i < 2 ? 'p-8 sm:p-10' : 'p-8'
+              }`}
             >
-              <div className="w-10 h-10 rounded-lg bg-friday-accent/10 border border-friday-accent/20 flex items-center justify-center text-friday-accent mb-4 group-hover:bg-friday-accent/15 group-hover:border-friday-accent/30 transition-colors duration-150">
-                {cap.icon}
+              {/* Ambient glow blob behind card content */}
+              <div
+                className="absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)',
+                }}
+              />
+
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-friday-accent/10 border border-friday-accent/20 flex items-center justify-center text-friday-accent mb-6 group-hover:bg-friday-accent/15 group-hover:border-friday-accent/30 group-hover:shadow-[0_0_20px_rgba(59,130,246,0.25)] transition-all duration-300">
+                  {cap.icon}
+                </div>
+                <h3 className="text-xl sm:text-2xl font-semibold text-friday-text-primary mb-3">
+                  {cap.title}
+                </h3>
+                <p className="text-base text-friday-text-secondary leading-relaxed">
+                  {cap.description}
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-friday-text-primary mb-2">
-                {cap.title}
-              </h3>
-              <p className="text-sm text-friday-text-secondary leading-relaxed">
-                {cap.description}
-              </p>
             </motion.div>
           ))}
         </div>
@@ -406,10 +425,10 @@ function PoweredBy() {
         animate={inView ? { opacity: 1 } : {}}
         transition={{ duration: 0.5 }}
       >
-        <p className="text-xs uppercase tracking-[0.2em] text-friday-text-muted mb-10 font-medium">
+        <p className="text-sm uppercase tracking-[0.2em] text-friday-text-muted mb-10 font-medium">
           Powered by
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
           {poweredBy.map((brand, i) => (
             <motion.span
               key={brand.name}
@@ -420,13 +439,19 @@ function PoweredBy() {
                 ease: 'easeOut',
                 delay: 0.1 + i * 0.08,
               }}
-              className="text-sm font-medium tracking-wide transition-colors duration-150 cursor-default"
+              className="text-base font-medium tracking-wide transition-all duration-200 cursor-default px-5 py-2.5 rounded-full glass-subtle hover:scale-105"
               style={{ color: 'var(--text-muted)' }}
               onMouseEnter={(e: React.MouseEvent<HTMLSpanElement>) => {
-                (e.target as HTMLElement).style.color = brand.color;
+                const el = e.target as HTMLElement;
+                el.style.color = brand.color;
+                el.style.boxShadow = `0 0 20px ${brand.color}33, 0 0 40px ${brand.color}11`;
+                el.style.borderColor = `${brand.color}44`;
               }}
               onMouseLeave={(e: React.MouseEvent<HTMLSpanElement>) => {
-                (e.target as HTMLElement).style.color = 'var(--text-muted)';
+                const el = e.target as HTMLElement;
+                el.style.color = 'var(--text-muted)';
+                el.style.boxShadow = '';
+                el.style.borderColor = '';
               }}
             >
               {brand.name}
@@ -444,9 +469,9 @@ function PoweredBy() {
 
 function Footer() {
   return (
-    <footer className="py-12 px-6 border-t border-friday-border/30">
+    <footer className="py-12 px-6 glass-subtle glass-highlight">
       <div className="max-w-4xl mx-auto text-center space-y-4">
-        <p className="text-sm text-friday-text-secondary">
+        <p className="text-base text-friday-text-secondary">
           Built with obsessive attention to detail. Open source.
         </p>
         <a

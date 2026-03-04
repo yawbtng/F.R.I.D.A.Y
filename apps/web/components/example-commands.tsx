@@ -57,11 +57,10 @@ export function ExampleCommands({ onCommand, disabled = false }: ExampleCommands
           className={`
             group relative px-4 py-2.5 rounded-full text-sm font-medium
             text-friday-text-secondary
-            border border-friday-border
-            bg-friday-secondary
-            transition-colors duration-150 ease-out
+            glass glass-hover
+            transition-all duration-200 ease-out
             hover:text-friday-text-primary
-            hover:bg-friday-elevated
+            hover:scale-[1.02]
             disabled:opacity-40 disabled:pointer-events-none
             text-left
           `}

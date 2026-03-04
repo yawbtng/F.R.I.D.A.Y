@@ -5,7 +5,7 @@ import { validateAgentRequest } from "@/lib/api-auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { getStagehand } from "@/lib/stagehand";
 import { compressScreenshot } from "@/lib/screenshot";
-import { api } from "../../../../../convex/_generated/api";
+import { api } from "../../../../../../convex/_generated/api";
 
 export const maxDuration = 60;
 

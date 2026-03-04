@@ -1,12 +1,40 @@
 "use client";
 
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import { ReactNode } from "react";
+import { Component, ReactNode } from "react";
 
-const convex = new ConvexReactClient(
-  process.env.NEXT_PUBLIC_CONVEX_URL as string,
-);
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
+
+/** Error boundary that catches Convex connection failures gracefully */
+class ConvexErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.children;
+    }
+    return this.props.children;
+  }
+}
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  return <ConvexProvider client={convex}>{children}</ConvexProvider>;
+  if (!convex) {
+    // No Convex URL configured — render children without provider.
+    // Components using useQuery will get undefined (handled gracefully).
+    return <>{children}</>;
+  }
+  return (
+    <ConvexErrorBoundary>
+      <ConvexProvider client={convex}>{children}</ConvexProvider>
+    </ConvexErrorBoundary>
+  );
 }

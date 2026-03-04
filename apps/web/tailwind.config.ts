@@ -48,6 +48,13 @@ const config: Config = {
         sm: 'var(--shadow-sm)',
         md: 'var(--shadow-md)',
         glow: 'var(--shadow-glow)',
+        glass: 'var(--glass-shadow)',
+        'glass-elevated': 'var(--glass-shadow-elevated)',
+      },
+      backdropBlur: {
+        glass: 'var(--glass-blur)',
+        'glass-heavy': 'var(--glass-blur-heavy)',
+        'glass-subtle': 'var(--glass-blur-subtle)',
       },
       spacing: {
         'fri-1': 'var(--space-1)',

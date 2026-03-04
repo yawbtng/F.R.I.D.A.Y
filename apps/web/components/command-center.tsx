@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserPreview } from './browser-preview';
-import { AudioOrb } from './audio-orb';
+import { AgentAudioVisualizerAura } from './agents-ui/agent-audio-visualizer-aura';
 import { SessionLoading } from './loading-states';
 
 type OrbState = 'idle' | 'listening' | 'speaking';
@@ -46,8 +46,6 @@ export function CommandCenter({
   sessionId,
   isLoading = false,
   orbState = 'idle',
-  audioLevel = 0,
-  waveformData,
   onTextCommand,
   onMicToggle,
   micActive = false,
@@ -89,22 +87,21 @@ export function CommandCenter({
         )}
       </AnimatePresence>
 
-      {/* Orb area — centered when idle, pinned to bottom when session active */}
-      {/* On mobile (<md), orb is fixed to bottom when session is active */}
+      {/* Visualizer — centered + large when idle, shrinks to bottom when session active */}
       <motion.div
         layout
         className={`flex items-center justify-center ${
           sessionActive
-            ? 'flex-shrink-0 py-6 md:relative max-md:fixed max-md:bottom-20 max-md:left-0 max-md:right-0 max-md:z-30'
+            ? 'flex-shrink-0 py-3 md:relative max-md:fixed max-md:bottom-20 max-md:left-0 max-md:right-0 max-md:z-30'
             : 'flex-1'
         }`}
         transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
       >
-        <AudioOrb
-          state={orbState}
-          audioLevel={audioLevel}
-          waveformData={waveformData}
-          sessionActive={sessionActive}
+        <AgentAudioVisualizerAura
+          size={sessionActive ? 'sm' : 'lg'}
+          state={orbState === 'speaking' ? 'speaking' : orbState === 'listening' ? 'listening' : 'listening'}
+          color="#3B82F6"
+          themeMode="dark"
         />
       </motion.div>
 
@@ -127,7 +124,7 @@ export function CommandCenter({
       <div className="flex-shrink-0 px-4 pb-4">
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-3 p-2 bg-friday-secondary rounded-xl border border-friday-border"
+          className="flex items-center gap-3 p-2 glass rounded-xl"
         >
           {/* Mic toggle */}
           <button
@@ -135,11 +132,11 @@ export function CommandCenter({
             onClick={onMicToggle}
             className={`
               flex items-center justify-center w-10 h-10 rounded-lg
-              transition-all duration-150 ease-out focus-ring
+              transition-all duration-200 ease-out focus-ring
               ${
                 micActive
-                  ? 'bg-friday-accent/20 text-friday-accent shadow-glow'
-                  : 'bg-friday-tertiary text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-border'
+                  ? 'bg-friday-accent/20 text-friday-accent shadow-glow backdrop-blur-sm border border-friday-accent/30'
+                  : 'glass-subtle text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.08]'
               }
             `}
             aria-label={micActive ? 'Mute microphone' : 'Unmute microphone'}
@@ -175,7 +172,7 @@ export function CommandCenter({
           <button
             type="submit"
             disabled={!textInput.trim()}
-            className="flex items-center justify-center w-10 h-10 rounded-lg bg-friday-accent/15 text-friday-accent disabled:opacity-30 disabled:cursor-not-allowed hover:bg-friday-accent/25 transition-colors duration-150 ease-out focus-ring"
+            className="flex items-center justify-center w-10 h-10 rounded-lg bg-friday-accent/15 backdrop-blur-sm text-friday-accent disabled:opacity-30 disabled:cursor-not-allowed hover:bg-friday-accent/25 hover:shadow-[0_0_12px_rgba(59,130,246,0.2)] transition-all duration-200 ease-out focus-ring"
             aria-label="Send command"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

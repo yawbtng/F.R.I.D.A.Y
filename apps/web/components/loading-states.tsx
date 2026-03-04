@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 export function BrowserSkeleton() {
   return (
     <div
-      className="relative w-full overflow-hidden rounded-lg bg-friday-tertiary"
+      className="relative w-full overflow-hidden rounded-lg glass"
       style={{ aspectRatio: '16 / 10' }}
     >
       {/* Shimmer sweep */}
@@ -17,7 +17,7 @@ export function BrowserSkeleton() {
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%)',
+            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)',
         }}
         animate={{ x: ['-100%', '100%'] }}
         transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -25,11 +25,11 @@ export function BrowserSkeleton() {
 
       {/* Skeleton content lines */}
       <div className="absolute inset-0 flex flex-col gap-3 p-6 pt-8">
-        <div className="h-4 w-3/4 rounded bg-friday-border/50" />
-        <div className="h-4 w-1/2 rounded bg-friday-border/50" />
-        <div className="h-4 w-5/6 rounded bg-friday-border/50" />
-        <div className="h-4 w-2/3 rounded bg-friday-border/50" />
-        <div className="mt-4 h-24 w-full rounded bg-friday-border/30" />
+        <div className="h-4 w-3/4 rounded bg-white/[0.06]" />
+        <div className="h-4 w-1/2 rounded bg-white/[0.06]" />
+        <div className="h-4 w-5/6 rounded bg-white/[0.06]" />
+        <div className="h-4 w-2/3 rounded bg-white/[0.06]" />
+        <div className="mt-4 h-24 w-full rounded bg-white/[0.04]" />
       </div>
     </div>
   );
