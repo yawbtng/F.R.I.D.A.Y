@@ -2,7 +2,7 @@
 // This is a long-running Node.js process (NOT serverless).
 // It connects to LiveKit Cloud and handles voice interactions.
 
-import { defineAgent, voice, type JobContext, type JobProcess } from '@livekit/agents';
+import { defineAgent, voice, inference, type JobContext, type JobProcess } from '@livekit/agents';
 import * as silero from '@livekit/agents-plugin-silero';
 import { agentTools, setBrowserSessionId } from './tools/index.js';
 import { setSessionToken } from './lib/agent-fetch.js';
@@ -11,6 +11,13 @@ import { FRIDAY_SYSTEM_PROMPT } from './friday-agent.js';
 // British Lady voice ID for Cartesia
 const CARTESIA_VOICE_ID = '79a125e8-cd45-4c13-8a67-188112f4dd22';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+// OpenRouter LLM via OpenAI-compatible API
+const openRouterLLM = new inference.LLM({
+  model: 'xai/grok-4.1-fast',
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY || '',
+});
 
 export default defineAgent({
   prewarm: async (proc: JobProcess) => {
@@ -44,7 +51,7 @@ export default defineAgent({
       instructions: FRIDAY_SYSTEM_PROMPT,
       vad: ctx.proc.userData.vad as silero.VAD,
       stt: 'deepgram/nova-3',
-      llm: 'anthropic/claude-sonnet-4-6',
+      llm: openRouterLLM,
       tts: `cartesia/sonic-3:${CARTESIA_VOICE_ID}`,
       allowInterruptions: true,
       tools: agentTools,
