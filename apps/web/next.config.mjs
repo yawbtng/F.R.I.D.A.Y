@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@browserbasehq/stagehand'],
+  experimental: {
+    serverComponentsExternalPackages: ['@browserbasehq/stagehand', 'exa-js'],
+  },
+  serverExternalPackages: ['@browserbasehq/stagehand', 'exa-js'],
 };
 
 export default nextConfig;
