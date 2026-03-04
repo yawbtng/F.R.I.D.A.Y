@@ -12,6 +12,7 @@
     "@browserbasehq/stagehand": "^3",
     "@livekit/components-react": "^2",
     "convex": "^1",
+    "exa-js": "^1.10.2",
     "framer-motion": "^11",
     "jose": "^6",
     "livekit-client": "^2",
@@ -22,6 +23,7 @@
     "zod": "^3"
   },
   "devDependencies": {
+    "@livekit/components-styles": "^1.2.0",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
