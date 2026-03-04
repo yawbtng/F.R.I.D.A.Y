@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yawbt/Documents/GitHub/Friday - VBA/.claude/metadata-updater.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
