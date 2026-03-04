@@ -3,12 +3,48 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommandCenter } from './command-center';
+import {
+  SessionExpiredError,
+  NavigationError,
+  AgentDisconnectedError,
+  GenericError,
+} from './error-states';
+import { ExportSession } from './export-session';
 
 type OrbState = 'idle' | 'listening' | 'speaking';
+
+/** Error to display in the shell */
+interface ShellError {
+  type: 'session-expired' | 'navigation' | 'agent-disconnected' | 'generic';
+  message: string;
+  suggestion?: string;
+  retryInSeconds?: number;
+}
+
+/** Session data for export */
+interface ExportSessionData {
+  title?: string;
+  browserbaseSessionId: string;
+  currentUrl?: string;
+  status: 'active' | 'idle' | 'error';
+  createdAt: number;
+  commands: Array<{
+    input: string;
+    result?: string;
+    toolsUsed?: string[];
+    status: 'pending' | 'running' | 'done' | 'error';
+    errorMessage?: string;
+    durationMs?: number;
+    screenshotUrl?: string;
+    createdAt: number;
+  }>;
+}
 
 interface FridayShellProps {
   /** Whether a browser session is active */
   sessionActive?: boolean;
+  /** Whether a session is being created */
+  sessionCreating?: boolean;
   /** Current screenshot URL */
   screenshotUrl?: string;
   /** Browserbase debug iframe URL */
@@ -31,6 +67,12 @@ interface FridayShellProps {
   onMicToggle?: () => void;
   /** Whether the mic is active */
   micActive?: boolean;
+  /** Current error to display */
+  error?: ShellError | null;
+  /** Called to retry/dismiss errors */
+  onErrorRetry?: () => void;
+  /** Session data for export functionality */
+  exportData?: ExportSessionData | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +145,13 @@ function SessionSidebar({ collapsed }: { collapsed: boolean }) {
 // Mission Log placeholder (right panel)
 // ---------------------------------------------------------------------------
 
-function MissionLog() {
+interface MissionLogProps {
+  error?: ShellError | null;
+  onErrorRetry?: () => void;
+  exportData?: ExportSessionData | null;
+}
+
+function MissionLog({ error, onErrorRetry, exportData }: MissionLogProps) {
   return (
     <div className="h-full flex flex-col bg-friday-surface border-l border-friday-border">
       {/* Header */}
@@ -111,29 +159,71 @@ function MissionLog() {
         <span className="text-sm font-semibold text-friday-text-primary tracking-wide uppercase">
           Mission Log
         </span>
-        {/* Export placeholder */}
-        <button
-          className="text-friday-text-tertiary hover:text-friday-text-secondary transition-colors"
-          aria-label="Export transcript"
-        >
-          <svg
-            className="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* Export button — functional when session data is available */}
+        {exportData ? (
+          <ExportSession session={exportData} />
+        ) : (
+          <button
+            className="text-friday-text-tertiary opacity-30 cursor-not-allowed"
+            aria-label="Export transcript (no session)"
+            disabled
           >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" x2="12" y1="15" y2="3" />
-          </svg>
-        </button>
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" x2="12" y1="15" y2="3" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* Transcript area */}
+      {/* Error display + transcript area */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
+        {/* Error states */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              className="mb-3"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              {error.type === 'session-expired' && (
+                <SessionExpiredError onRetry={onErrorRetry} />
+              )}
+              {error.type === 'navigation' && (
+                <NavigationError
+                  message={error.message}
+                  suggestion={error.suggestion}
+                  onRetry={onErrorRetry}
+                />
+              )}
+              {error.type === 'agent-disconnected' && (
+                <AgentDisconnectedError
+                  retryInSeconds={error.retryInSeconds}
+                  onRetry={onErrorRetry}
+                />
+              )}
+              {error.type === 'generic' && (
+                <GenericError
+                  message={error.message}
+                  actionLabel="Dismiss"
+                  onAction={onErrorRetry}
+                />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <p className="text-xs text-friday-text-tertiary font-mono text-center mt-8">
           Conversation transcript will appear here
         </p>
@@ -249,6 +339,7 @@ export function FridayShell(props: FridayShellProps) {
         <div className="flex-1 min-w-0">
           <CommandCenter
             sessionActive={props.sessionActive}
+            sessionCreating={props.sessionCreating}
             screenshotUrl={props.screenshotUrl}
             iframeSrc={props.iframeSrc}
             currentUrl={props.currentUrl}
@@ -265,7 +356,11 @@ export function FridayShell(props: FridayShellProps) {
 
         {/* Right — Mission Log (hidden on mobile) */}
         <div className="hidden md:block flex-shrink-0 w-[320px]">
-          <MissionLog />
+          <MissionLog
+            error={props.error}
+            onErrorRetry={props.onErrorRetry}
+            exportData={props.exportData}
+          />
         </div>
       </div>
     </div>

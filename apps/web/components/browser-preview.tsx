@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BrowserSkeleton } from './loading-states';
 
 type ViewMode = 'live' | 'screenshot';
 
@@ -158,10 +159,16 @@ export function BrowserPreview({
             </div>
           )}
 
-          {/* Loading overlay */}
+          {/* Loading overlay — skeleton when empty, spinner when content exists */}
           {isLoading && (
-            <div className="absolute inset-0 bg-friday-bg/30 flex items-center justify-center pointer-events-none">
-              <div className="w-8 h-8 border-2 border-friday-accent/30 border-t-friday-accent rounded-full animate-spin" />
+            <div className="absolute inset-0 pointer-events-none">
+              {!hasScreenshot && !hasLive ? (
+                <BrowserSkeleton />
+              ) : (
+                <div className="absolute inset-0 bg-friday-bg/30 flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-friday-accent/30 border-t-friday-accent rounded-full animate-spin" />
+                </div>
+              )}
             </div>
           )}
         </div>
