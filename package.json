@@ -12,6 +12,7 @@
     "lint": "turbo lint"
   },
   "devDependencies": {
+    "convex": "^1",
     "turbo": "^2",
     "vitest": "^3",
     "typescript": "^5"
