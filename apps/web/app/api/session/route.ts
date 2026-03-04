@@ -25,6 +25,11 @@ export async function POST(req: NextRequest) {
         apiKey: process.env.BROWSERBASE_API_KEY!,
         projectId: process.env.BROWSERBASE_PROJECT_ID!,
         keepAlive: true,
+        model: {
+          modelName: "xai/grok-4.1-fast",
+          baseURL: "https://openrouter.ai/api/v1",
+          apiKey: process.env.OPENROUTER_API_KEY!,
+        },
       });
       await stagehand.init();
       const sessionId = stagehand.browserbaseSessionID!;
