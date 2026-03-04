@@ -113,7 +113,7 @@ function MissionLog() {
         </span>
         {/* Export placeholder */}
         <button
-          className="text-friday-text-tertiary hover:text-friday-text-secondary transition-colors"
+          className="text-friday-text-tertiary hover:text-friday-text-secondary transition-colors duration-150 ease-out focus-ring rounded-md p-1 -m-1"
           aria-label="Export transcript"
         >
           <svg
@@ -152,7 +152,7 @@ function MissionLog() {
           ].map((cmd) => (
             <div
               key={cmd}
-              className="text-xs text-friday-text-secondary font-mono px-2.5 py-1.5 bg-friday-tertiary rounded-md border border-friday-border"
+              className="text-xs text-friday-text-secondary font-mono px-2.5 py-1.5 bg-friday-tertiary rounded-md border border-friday-border hover:border-friday-border-hover hover:text-friday-text-primary transition-colors duration-150 ease-out cursor-default"
             >
               &ldquo;{cmd}&rdquo;
             </div>
@@ -173,12 +173,12 @@ export function FridayShell(props: FridayShellProps) {
   return (
     <div className="h-screen w-screen overflow-hidden bg-friday-bg flex flex-col">
       {/* Top bar */}
-      <header className="flex-shrink-0 flex items-center justify-between px-4 h-12 border-b border-friday-border bg-friday-surface/80 backdrop-blur-sm">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 h-12 border-b border-friday-border/60 bg-friday-surface/60 backdrop-blur-xl supports-[backdrop-filter]:bg-friday-surface/40">
         {/* Left — sidebar toggle + logo */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen((v) => !v)}
-            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors"
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors duration-150 ease-out focus-ring"
             aria-label="Toggle sidebar"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">

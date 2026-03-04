@@ -174,7 +174,7 @@ export function BrowserPreview({
           <button
             onClick={() => setMode('live')}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ease-out focus-ring
               ${mode === 'live'
                 ? 'bg-friday-accent/15 text-friday-accent'
                 : 'text-friday-text-secondary hover:text-friday-text-primary'
@@ -191,7 +191,7 @@ export function BrowserPreview({
           <button
             onClick={() => setMode('screenshot')}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ease-out focus-ring
               ${mode === 'screenshot'
                 ? 'bg-friday-accent/15 text-friday-accent'
                 : 'text-friday-text-secondary hover:text-friday-text-primary'

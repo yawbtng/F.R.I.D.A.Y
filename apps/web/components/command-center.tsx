@@ -116,7 +116,7 @@ export function CommandCenter({
             onClick={onMicToggle}
             className={`
               flex items-center justify-center w-10 h-10 rounded-lg
-              transition-all duration-200
+              transition-all duration-150 ease-out focus-ring
               ${
                 micActive
                   ? 'bg-friday-accent/20 text-friday-accent shadow-glow'
@@ -149,14 +149,14 @@ export function CommandCenter({
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             placeholder="Type a command..."
-            className="flex-1 bg-transparent text-sm text-friday-text-primary placeholder:text-friday-text-tertiary focus:outline-none font-mono"
+            className="flex-1 bg-transparent text-sm text-friday-text-primary placeholder:text-friday-text-tertiary focus:outline-none font-mono selection:bg-friday-accent/30"
           />
 
           {/* Send button */}
           <button
             type="submit"
             disabled={!textInput.trim()}
-            className="flex items-center justify-center w-10 h-10 rounded-lg bg-friday-accent/15 text-friday-accent disabled:opacity-30 disabled:cursor-not-allowed hover:bg-friday-accent/25 transition-colors"
+            className="flex items-center justify-center w-10 h-10 rounded-lg bg-friday-accent/15 text-friday-accent disabled:opacity-30 disabled:cursor-not-allowed hover:bg-friday-accent/25 transition-colors duration-150 ease-out focus-ring"
             aria-label="Send command"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
