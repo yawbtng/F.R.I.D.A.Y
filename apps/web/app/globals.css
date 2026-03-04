@@ -258,6 +258,57 @@ html {
   to { opacity: 1; }
 }
 
+@keyframes orbit {
+  0% {
+    transform: rotate(0deg) translateY(calc(var(--radius) * 1px)) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateY(calc(var(--radius) * 1px)) rotate(-360deg);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Landing Page Motion Utilities
+   --------------------------------------------------------------------------- */
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-text {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 30%, #818cf8 60%, #60a5fa 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.bento-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.bento-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+  transform: skewX(-25deg);
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.04), transparent);
+  transition: left 0.65s ease-in-out;
+}
+
+.group:hover .bento-shine::after {
+  left: 125%;
+}
+
 /* ---------------------------------------------------------------------------
    Global Transition Defaults
    --------------------------------------------------------------------------- */

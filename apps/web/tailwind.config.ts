@@ -56,6 +56,19 @@ const config: Config = {
         'glass-heavy': 'var(--glass-blur-heavy)',
         'glass-subtle': 'var(--glass-blur-subtle)',
       },
+      animation: {
+        orbit: 'orbit calc(var(--duration) * 1s) linear infinite',
+      },
+      keyframes: {
+        orbit: {
+          '0%': {
+            transform: 'rotate(0deg) translateY(calc(var(--radius) * 1px)) rotate(0deg)',
+          },
+          '100%': {
+            transform: 'rotate(360deg) translateY(calc(var(--radius) * 1px)) rotate(-360deg)',
+          },
+        },
+      },
       spacing: {
         'fri-1': 'var(--space-1)',
         'fri-2': 'var(--space-2)',
