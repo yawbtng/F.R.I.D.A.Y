@@ -59,17 +59,19 @@ export function ExampleCommands({ onCommand, disabled = false }: ExampleCommands
             text-friday-text-secondary
             border border-friday-border
             bg-friday-secondary
-            transition-all duration-200 ease-out
+            transition-colors duration-150 ease-out
             hover:text-friday-text-primary
-            hover:border-friday-accent
-            hover:shadow-glow
             hover:bg-friday-elevated
-            active:scale-[0.98]
             disabled:opacity-40 disabled:pointer-events-none
             text-left
           `}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{
+            scale: 1.02,
+            borderColor: 'var(--accent-primary)',
+            boxShadow: 'var(--shadow-glow)',
+          }}
           whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           <span className="relative z-10">{cmd}</span>
         </motion.button>
