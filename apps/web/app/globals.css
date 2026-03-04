@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --bg-surface: #0d0d0d;
+  --border-default: #222222;
+  --border-hover: #333333;
+  --border-active: #3b82f6;
+  --text-primary: #ededed;
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --accent-primary: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+  --accent-hover: #60a5fa;
+  --status-active: #22c55e;
+  --status-error: #ef4444;
+  --status-pending: #f59e0b;
+  --visualizer-glow: rgba(59, 130, 246, 0.4);
+  --friday-pulse: rgba(59, 130, 246, 0.08);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+}

@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - agent
+
+ignoreBuildScripts: false
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - onnxruntime-node
+  - protobufjs
+  - bufferutil

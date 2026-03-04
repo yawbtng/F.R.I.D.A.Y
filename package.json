@@ -1,0 +1,23 @@
+{
+  "name": "friday-vba",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Friday — Voice Browser Agent. Speak a command, watch a cloud browser execute it, hear the result.",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "INTEGRATION=true vitest run tests/integration/",
+    "lint": "turbo lint"
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "vitest": "^3",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=20"
+  }
+}
