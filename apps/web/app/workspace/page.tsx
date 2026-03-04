@@ -78,6 +78,19 @@ export default function WorkspacePage() {
     setOrbState((prev: OrbState) => (prev === 'listening' ? 'idle' : 'listening'));
   }, []);
 
+  const handleSelectSession = useCallback((id: string) => {
+    // Switch to an existing session from sidebar
+    // Full resume logic (token refresh, debug URL) will be wired in a future issue
+    setSessionId(id);
+    setScreenshotUrl('');
+    setCurrentUrl('');
+    setDebugUrl('');
+  }, []);
+
+  const handleNewSession = useCallback(() => {
+    createSession();
+  }, [createSession]);
+
   return (
     <FridayShell
       sessionActive={sessionActive}
@@ -90,6 +103,8 @@ export default function WorkspacePage() {
       onTextCommand={handleTextCommand}
       onMicToggle={handleMicToggle}
       micActive={micActive}
+      onSelectSession={handleSelectSession}
+      onNewSession={handleNewSession}
     />
   );
 }
