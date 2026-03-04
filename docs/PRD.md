@@ -294,14 +294,17 @@ export default defineAgent({
     const fridayAgent = new voice.Agent({
       instructions: FRIDAY_SYSTEM_PROMPT, // See §3.4 below
       tools: {
-        // Browser automation tools
+        // Browser automation tools (Stagehand via Next.js API routes)
         navigate: navigateTool,
         act: actTool,
         extract: extractTool,
         observe: observeTool,
         screenshot: screenshotTool,
-        // Web search tool
-        web_search: webSearchTool,
+        // Search & knowledge tools (direct API — no browser needed)
+        web_search: exaSearchTool,        // Exa AI — fast web search with content
+        quick_answer: exaAnswerTool,      // Exa AI — synthesized answer with citations
+        calculate: mathTool,              // Math operations
+        github_lookup: githubTool,        // GitHub API — repos, trending, profiles
       },
     });
 
@@ -548,11 +551,12 @@ Just talk. You have broad knowledge — use it. Not every question needs a tool.
 - "Explain how React Server Components work" → Answer from knowledge.
 - If the user is just chatting, chat back. You're a co-pilot, not a command terminal.
 
-### 2. Web Search
-For questions needing current, real-time information. Use web_search.
-- "What happened with OpenAI today?" → web_search
-- "What's the current price of Bitcoin?" → web_search
-- "Any good conferences coming up?" → web_search
+### 2. Search & Knowledge
+For questions needing current data, quick facts, math, or GitHub info. Use the fast tools — no browser needed.
+- "What happened with OpenAI today?" → web_search (Exa)
+- "When was Python created?" → quick_answer (Exa — direct answer with citations)
+- "What's 15% tip on $87?" → calculate (math tool)
+- "What's trending on GitHub?" → github_lookup
 - After searching, summarize results conversationally. Offer to navigate to sources.
 
 ### 3. Browser Control
@@ -565,7 +569,10 @@ When the user wants to SEE or INTERACT with a website. Use navigate, act, extrac
 | User Intent | Tool | Example |
 |------------|------|---------|
 | General knowledge question | None (just talk) | "What is Kubernetes?" |
-| Needs current/live data | web_search | "Latest SpaceX news?" |
+| Needs current/live data | web_search (Exa) | "Latest SpaceX news?" |
+| Quick factual question | quick_answer (Exa) | "When was Python created?" |
+| Math/calculation | calculate | "What's 15% tip on $87?" |
+| GitHub repo/trending info | github_lookup | "What's trending on GitHub?" |
 | Wants to visit a website | navigate | "Go to github.com" |
 | Wants to interact with a page | act | "Click the sign-up button" |
 | Wants structured data from a page | extract | "Get all the prices on this page" |
@@ -631,93 +638,191 @@ The user should feel like they have a co-pilot with eyes on the mission, not a s
 
 **Why this matters for the demo**: When Jay from Browserbase sees Friday respond with "That site's from 2003 and it shows, but the data's here" instead of "I have successfully navigated to the website and extracted the requested information" — that's the difference between a toy project and something that feels *alive*.
 
-### 3.5 Web Search Tool
+### 3.5 Search & Knowledge Tools (Exa + AI SDK)
 
-Friday needs web search for questions that require current information (news, prices, real-time data) where navigating a full website would be overkill.
+Friday's non-browser tools run **directly in the agent worker** — no Next.js API route or Browserbase session needed. This makes them fast (~200ms) and reliable.
 
-**Implementation** — Uses Stagehand to search Google and extract results:
+#### 3.5.1 Exa Search — Primary Web Search
+
+**Why Exa instead of Google-via-Stagehand?**
+- **~200ms** vs 3-5 seconds (API call vs spinning up a browser)
+- **No CAPTCHA risk** — Exa is an API, not a browser scrape
+- **Structured data natively** — no Stagehand extraction step needed
+- **Doesn't consume Browserbase credits** for search
+- **Content included** — `searchAndContents()` returns page text in one call
 
 ```typescript
-// agent/src/tools/web-search.ts
-const webSearchTool = llm.tool({
-  description: 'Search the web for current information. Use this for factual questions that need up-to-date data (news, prices, events). Do NOT use this if the user wants to visit a specific website — use navigate instead.',
+// agent/src/tools/exa-search.ts
+import Exa from 'exa-js';
+
+const exa = new Exa(process.env.EXA_API_KEY!);
+
+const exaSearchTool = llm.tool({
+  description: 'Search the web for current information. Returns results with snippets and content. Use for news, prices, events, or any question needing real-time data. Do NOT use if the user wants to visit a specific website — use navigate instead.',
   parameters: z.object({
     query: z.string().describe('The search query'),
+    numResults: z.number().optional().describe('Number of results (default 5)'),
   }),
-  execute: async ({ query }, { ctx }) => {
-    const res = await fetch(`${WEB_URL}/api/browser/search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-agent-secret': AGENT_SECRET,
-      },
-      body: JSON.stringify({ query, sessionId }),
+  execute: async ({ query, numResults = 5 }) => {
+    await agentSession.say("Searching for that now.", { allowInterruptions: true });
+
+    const results = await exa.searchAndContents(query, {
+      numResults,
+      text: { maxCharacters: 500 },    // Include page content snippets
+      highlights: true,                  // Key sentences highlighted
     });
-    return await res.json();
-    // Returns: { results: [{ title, url, snippet }], screenshot }
+
+    // Format for LLM consumption
+    const formatted = results.results.map((r, i) =>
+      `${i + 1}. **${r.title}** (${r.url})\n   ${r.text?.slice(0, 200)}...`
+    ).join('\n\n');
+
+    return `Found ${results.results.length} results:\n\n${formatted}\n\nWant me to open any of these?`;
   },
 });
 ```
 
-**API Route** — `POST /api/browser/search`:
+**Key Exa methods available to Friday**:
+| Method | When Friday Uses It |
+|--------|-------------------|
+| `searchAndContents(query)` | Default search — "latest SpaceX news" |
+| `answer(query)` | Quick factual answers — "what is the capital of Japan?" |
+| `findSimilar(url)` | "Find sites like this one" (after navigating somewhere) |
+| `getContents(urls)` | Deep-read specific URLs from search results |
+
+#### 3.5.2 Exa Answer — Quick Factual Answers
+
+For questions where the user wants a direct answer (not a list of links), Exa's `answer()` method returns a synthesized response with citations.
 
 ```typescript
-// apps/web/app/api/browser/search/route.ts
-export async function POST(req: Request) {
-  const { query, sessionId } = await req.json();
+// agent/src/tools/exa-answer.ts
+const exaAnswerTool = llm.tool({
+  description: 'Get a quick, factual answer to a question with cited sources. Use for straightforward factual questions where the user wants a direct answer, not a list of search results. Examples: "What is the population of Tokyo?", "When did SpaceX last launch?"',
+  parameters: z.object({
+    query: z.string().describe('The factual question to answer'),
+  }),
+  execute: async ({ query }) => {
+    const response = await exa.answer(query, {
+      model: 'exa',   // or 'exa-pro' for higher quality
+    });
 
-  const stagehand = new Stagehand({
-    browserbaseSessionID: sessionId,
-    keepAlive: true,
-    ...
-  });
-  await stagehand.init();
+    const citations = response.citations
+      .map(c => `- ${c.title} (${c.url})`)
+      .join('\n');
 
-  // Navigate to Google and search
-  await stagehand.page.goto(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
-
-  // Extract top results using Stagehand's AI extraction
-  const results = await stagehand.extract({
-    instruction: "Extract the top 5 search results with their title, URL, and snippet text",
-    schema: z.object({
-      results: z.array(z.object({
-        title: z.string(),
-        url: z.string(),
-        snippet: z.string(),
-      })),
-    }),
-  });
-
-  const screenshot = await stagehand.page.screenshot({ encoding: "base64" });
-  await stagehand.close();
-
-  return Response.json({
-    ...results,
-    screenshot,
-  });
-}
-```
-
-**Why search via Stagehand instead of a search API?** Two reasons:
-1. **Demonstrates Browserbase's power** — searching via a real browser shows Stagehand can handle any website, not just APIs
-2. **No extra API key** — Google Search API costs money and requires separate credentials. Stagehand + Google.com is free and already works
-
-**Google Anti-Bot Mitigation**: Google aggressively blocks automated browsers with CAPTCHAs. Use **Browserbase's proxy mode** for search sessions to route through residential IPs:
-
-```typescript
-// lib/stagehand.ts — when creating a session for search
-const stagehand = new Stagehand({
-  env: "BROWSERBASE",
-  keepAlive: true,
-  browserbaseSessionCreateParams: {
-    timeout: 900,
-    proxies: true,  // ★ Residential proxy — avoids Google CAPTCHA
+    return `${response.answer}\n\nSources:\n${citations}`;
   },
-  // ...
 });
 ```
 
-**Note**: Proxy mode uses more Browserbase credits per session. Only enable it for the `search` route — navigation and other tools don't need it since they visit diverse URLs that don't have anti-bot detection. If proxy mode is insufficient, fall back to DuckDuckGo (`https://html.duckduckgo.com/html/?q=...`) which rarely blocks automated browsers.
+**When to use `answer` vs `searchAndContents`**:
+- **answer**: "What year was Python created?" → direct answer with citation
+- **searchAndContents**: "Latest AI news this week" → list of articles with snippets
+
+#### 3.5.3 Math Tool
+
+Trivial but useful — handles calculations without the LLM having to guess.
+
+```typescript
+// agent/src/tools/math.ts
+const mathTool = llm.tool({
+  description: 'Evaluate a mathematical expression. Use for calculations, unit conversions, percentages, etc. Examples: "15% tip on $87", "convert 72°F to Celsius".',
+  parameters: z.object({
+    expression: z.string().describe('The math expression to evaluate (JavaScript syntax)'),
+  }),
+  execute: async ({ expression }) => {
+    try {
+      // Safe math evaluation (no eval — use mathjs or a sandboxed approach)
+      const { evaluate } = await import('mathjs');
+      const result = evaluate(expression);
+      return `${expression} = ${result}`;
+    } catch {
+      return `Couldn't evaluate "${expression}". Try rephrasing the math.`;
+    }
+  },
+});
+```
+
+#### 3.5.4 GitHub Lookup Tool
+
+Answers GitHub questions without opening a browser — faster and more structured.
+
+```typescript
+// agent/src/tools/github.ts
+const githubTool = llm.tool({
+  description: 'Look up GitHub repositories, profiles, or trending repos. Use when the user asks about repos, stars, or GitHub-specific data. Do NOT use if the user wants to browse GitHub visually — use navigate instead.',
+  parameters: z.object({
+    action: z.enum(['search_repos', 'get_repo', 'trending']).describe('What to look up'),
+    query: z.string().optional().describe('Search query or repo name (owner/repo)'),
+  }),
+  execute: async ({ action, query }) => {
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+
+    if (action === 'search_repos' && query) {
+      const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=5`, { headers });
+      const data = await res.json();
+      return data.items.map((r: any) =>
+        `**${r.full_name}** — ⭐ ${r.stargazers_count.toLocaleString()} | ${r.description || 'No description'}`
+      ).join('\n');
+    }
+
+    if (action === 'get_repo' && query) {
+      const res = await fetch(`https://api.github.com/repos/${query}`, { headers });
+      const r = await res.json();
+      return `**${r.full_name}** — ⭐ ${r.stargazers_count.toLocaleString()} | 🍴 ${r.forks_count} | ${r.language}\n${r.description}\nLast updated: ${new Date(r.updated_at).toLocaleDateString()}`;
+    }
+
+    if (action === 'trending') {
+      // GitHub doesn't have a trending API — use search by recent stars
+      const since = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      const res = await fetch(`https://api.github.com/search/repositories?q=created:>${since}&sort=stars&per_page=5`, { headers });
+      const data = await res.json();
+      return `Trending repos this week:\n` + data.items.map((r: any, i: number) =>
+        `${i + 1}. **${r.full_name}** — ⭐ ${r.stargazers_count.toLocaleString()} | ${r.description || ''}`
+      ).join('\n');
+    }
+
+    return 'Specify a search query or repo name.';
+  },
+});
+```
+
+#### 3.5.5 AI SDK 6 Agent Features
+
+Beyond individual tools, the Vercel AI SDK 6 provides agent-level capabilities we leverage:
+
+**`needsApproval`** — Human-in-the-loop for risky actions:
+```typescript
+// On the act tool — gate actions that could submit forms or change state
+const actTool = llm.tool({
+  description: 'Perform an action on the current page',
+  parameters: z.object({ instruction: z.string() }),
+  needsApproval: async ({ instruction }) => {
+    // Require confirmation for actions that sound destructive
+    const riskyPatterns = ['submit', 'delete', 'remove', 'purchase', 'buy', 'send', 'confirm'];
+    return riskyPatterns.some(p => instruction.toLowerCase().includes(p));
+  },
+  execute: async ({ instruction }) => { /* ... */ },
+});
+// Friday will say: "Boss, this will submit the form. Go ahead?"
+```
+
+**`rerank()`** — Re-rank search results by relevance:
+```typescript
+// After Exa search, re-rank results for the user's specific intent
+import { rerank } from 'ai';
+import { cohere } from '@ai-sdk/cohere';
+
+const reranked = await rerank({
+  model: cohere.reranking('rerank-v3.5'),
+  documents: searchResults.map(r => r.text),
+  query: userQuery,
+  topN: 3,
+});
+// Friday reads the top 3 most relevant results, not just the top 3 by default ranking
+```
+
+**Why these matter for the demo**: `needsApproval` shows Friday isn't a reckless bot — she confirms before doing anything risky. `rerank` means Friday's search answers are more precise. Both demonstrate production-quality thinking to Browserbase reviewers.
 
 ---
 
@@ -731,12 +836,35 @@ Friday: "React's a UI library — you bring your own stack. Vue's a full
          Vue's easier to pick up. Want me to pull up a comparison?"
 ```
 
-**Example 2: Web search → offer to browse**
+**Example 2: Web search via Exa → offer to browse**
 ```
 User: "What's the latest news about SpaceX?"
-Friday: [calls web_search("SpaceX latest news 2026")]
+Friday: [calls web_search("SpaceX latest news 2026")]  ← Exa, ~200ms
         "Starship completed its fifth orbital test yesterday — booster
          caught by the tower again. Want me to pull up the article?"
+```
+
+**Example 2b: Quick factual answer via Exa**
+```
+User: "When was Rust created?"
+Friday: [calls quick_answer("When was the Rust programming language created?")]
+        "Rust was first released in 2010 by Graydon Hoare at Mozilla.
+         Hit 1.0 in 2015. Source: rust-lang.org."
+```
+
+**Example 2c: Math**
+```
+User: "What's a 20% tip on $134?"
+Friday: [calls calculate("134 * 0.20")]
+        "That's $26.80, Boss. Total comes to $160.80."
+```
+
+**Example 2d: GitHub lookup**
+```
+User: "What's trending on GitHub this week?"
+Friday: [calls github_lookup({ action: "trending" })]
+        "Top trending: first is DeepSeek-V3 with 42k stars, then
+         OpenHands at 28k, and bolt.new at 19k. Want me to open any?"
 ```
 
 **Example 3: Seamless transition → browser**
@@ -981,12 +1109,15 @@ Friday - VBA/
 │   │   │   ├── agent-fetch.ts          # ★ Shared fetch utility: auth, abort, timeout, retries
 │   │   │   └── convex-client.ts        # ★ Convex HTTP client for persisting data
 │   │   └── tools/
-│   │       ├── navigate.ts             # navigate tool definition
-│   │       ├── act.ts                  # act tool definition
-│   │       ├── extract.ts              # extract tool definition
-│   │       ├── observe.ts              # observe tool definition
-│   │       ├── screenshot.ts           # screenshot tool definition
-│   │       └── web-search.ts           # web search tool definition
+│   │       ├── navigate.ts             # navigate tool (Stagehand via API)
+│   │       ├── act.ts                  # act tool (Stagehand via API, needsApproval for risky actions)
+│   │       ├── extract.ts              # extract tool (Stagehand via API)
+│   │       ├── observe.ts              # observe tool (Stagehand via API)
+│   │       ├── screenshot.ts           # screenshot tool (Stagehand via API)
+│   │       ├── exa-search.ts           # ★ Exa searchAndContents — fast web search
+│   │       ├── exa-answer.ts           # ★ Exa answer — factual Q&A with citations
+│   │       ├── math.ts                 # ★ Math evaluation via mathjs
+│   │       └── github.ts              # ★ GitHub API — repos, trending, profiles
 │   ├── tsconfig.json
 │   ├── Dockerfile
 │   └── package.json
@@ -1102,21 +1233,7 @@ All browser routes accept POST with JSON body. All require `sessionId` for Stage
 }
 ```
 
-**POST /api/browser/search** — Web search via Google + Stagehand extraction
-```typescript
-// Request
-{ sessionId: string, query: string }
-
-// Response
-{
-  results: Array<{
-    title: string,
-    url: string,
-    snippet: string,
-  }>,
-  screenshot: string,
-}
-```
+**~~POST /api/browser/search~~** — REMOVED. Web search now handled by Exa directly in the agent worker (no browser/API route needed). See §3.5.1.
 
 **POST /api/browser/screenshot**
 ```typescript
@@ -1187,10 +1304,7 @@ export const ObserveSchema = z.object({
   instruction: z.string().min(1),
 });
 
-export const SearchSchema = z.object({
-  sessionId: z.string().min(1),
-  query: z.string().min(1, 'Search query cannot be empty'),
-});
+// SearchSchema REMOVED — search handled by Exa in agent, not via API route
 
 export const ScreenshotSchema = z.object({
   sessionId: z.string().min(1),
@@ -1892,6 +2006,12 @@ BROWSERBASE_PROJECT_ID=...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # ═══════════════════════════════════════════════
+# Exa — AI-native web search API
+# Get at: https://dashboard.exa.ai
+# ═══════════════════════════════════════════════
+EXA_API_KEY=...
+
+# ═══════════════════════════════════════════════
 # LiveKit — real-time voice infrastructure
 # Get these at: https://cloud.livekit.io
 # ═══════════════════════════════════════════════
@@ -2331,7 +2451,12 @@ These were explicitly chosen during planning and should NOT be revisited without
 | **Agent → Convex** | HTTP client + workspace-root convex/ | Agent worker writes to Convex directly via `ConvexHttpClient`. Shared types from workspace-root `convex/_generated/api`. |
 | **Tool boilerplate** | Shared `agentFetch` utility | Single utility handles auth, abort, timeout, retries for all 6+ tools. Each tool is ~5 lines. |
 | **Error responses** | Raw objects + HTTP status codes | No `{success, data}` wrapper. Success = 200 + raw JSON. Error = 4xx/5xx + `{error, code}`. RESTful and simple. |
-| **Search engine** | Google via Browserbase proxy | Proxy mode (`proxies: true`) avoids Google CAPTCHA. Falls back to DuckDuckGo if insufficient. |
+| **Search engine** | Exa AI (API) | ~200ms vs 3-5s for Google-via-Stagehand. No CAPTCHA risk. Structured results with content. Doesn't consume Browserbase credits. |
+| **Quick answers** | Exa `answer()` | Synthesized answers with citations for factual questions. Faster than search + summarize. |
+| **Math** | mathjs | Safe expression evaluation without LLM guessing. Trivial to add. |
+| **GitHub** | GitHub REST API (unauthenticated) | Repo search, details, trending — no browser needed. 60 req/hr unauthenticated. |
+| **Risky action gating** | AI SDK `needsApproval` | `act()` tool gates submissions/deletions. Friday confirms: "Boss, this will submit the form. Go ahead?" |
+| **Search re-ranking** | Cohere `rerank()` via AI SDK | Re-ranks Exa results by user intent before Friday reads them. More precise answers. |
 | **Tool timeouts** | 10s timeout + 5s heartbeat | `Promise.race` with 10s timeout. 5s heartbeat `say("Still working on it...")` for slow ops. Eliminates dead silence. |
 | **Testing** | Vitest: unit + integration + smoke | Unit tests for API routes + agent tools. Real Browserbase integration test (gated). Agent startup smoke test. |
 | **Input validation** | Zod schemas on all API routes | `lib/schemas.ts` — `safeParse` on every route. Clean 400 errors instead of cryptic Stagehand crashes. |

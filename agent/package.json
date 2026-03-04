@@ -12,6 +12,8 @@
     "@livekit/agents": "^1",
     "@livekit/agents-plugin-silero": "^1",
     "convex": "^1",
+    "exa-js": "^1",
+    "mathjs": "^14",
     "zod": "^3"
   },
   "devDependencies": {
