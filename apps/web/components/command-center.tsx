@@ -4,12 +4,15 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserPreview } from './browser-preview';
 import { AudioOrb } from './audio-orb';
+import { SessionLoading } from './loading-states';
 
 type OrbState = 'idle' | 'listening' | 'speaking';
 
 interface CommandCenterProps {
   /** Whether a browser session is active */
   sessionActive?: boolean;
+  /** Whether a session is currently being created */
+  sessionCreating?: boolean;
   /** Current screenshot URL */
   screenshotUrl?: string;
   /** Browserbase debug iframe URL */
@@ -36,6 +39,7 @@ interface CommandCenterProps {
 
 export function CommandCenter({
   sessionActive = false,
+  sessionCreating = false,
   screenshotUrl,
   iframeSrc,
   currentUrl,
@@ -103,6 +107,21 @@ export function CommandCenter({
           sessionActive={sessionActive}
         />
       </motion.div>
+
+      {/* Session creation loading indicator */}
+      <AnimatePresence>
+        {sessionCreating && !sessionActive && (
+          <motion.div
+            className="flex-shrink-0 flex justify-center px-4 pb-2"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <SessionLoading />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Controls bar — mic button + text input */}
       <div className="flex-shrink-0 px-4 pb-4">

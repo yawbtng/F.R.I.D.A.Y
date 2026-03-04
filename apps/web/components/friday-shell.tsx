@@ -8,9 +8,38 @@ import { MissionLog } from './mission-log';
 
 type OrbState = 'idle' | 'listening' | 'speaking';
 
+/** Error to display in the shell */
+interface ShellError {
+  type: 'session-expired' | 'navigation' | 'agent-disconnected' | 'generic';
+  message: string;
+  suggestion?: string;
+  retryInSeconds?: number;
+}
+
+/** Session data for export */
+interface ExportSessionData {
+  title?: string;
+  browserbaseSessionId: string;
+  currentUrl?: string;
+  status: 'active' | 'idle' | 'error';
+  createdAt: number;
+  commands: Array<{
+    input: string;
+    result?: string;
+    toolsUsed?: string[];
+    status: 'pending' | 'running' | 'done' | 'error';
+    errorMessage?: string;
+    durationMs?: number;
+    screenshotUrl?: string;
+    createdAt: number;
+  }>;
+}
+
 interface FridayShellProps {
   /** Whether a browser session is active */
   sessionActive?: boolean;
+  /** Whether a session is being created */
+  sessionCreating?: boolean;
   /** Current screenshot URL */
   screenshotUrl?: string;
   /** Browserbase debug iframe URL */
@@ -37,6 +66,12 @@ interface FridayShellProps {
   onSelectSession?: (sessionId: string) => void;
   /** Callback when user clicks "+ New Session" */
   onNewSession?: () => void;
+  /** Current error to display */
+  error?: ShellError | null;
+  /** Called to retry/dismiss errors */
+  onErrorRetry?: () => void;
+  /** Session data for export functionality */
+  exportData?: ExportSessionData | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +167,7 @@ export function FridayShell(props: FridayShellProps) {
         <div className="flex-1 min-w-0">
           <CommandCenter
             sessionActive={props.sessionActive}
+            sessionCreating={props.sessionCreating}
             screenshotUrl={props.screenshotUrl}
             iframeSrc={props.iframeSrc}
             currentUrl={props.currentUrl}
@@ -148,7 +184,12 @@ export function FridayShell(props: FridayShellProps) {
 
         {/* Right — Mission Log (hidden on mobile) */}
         <div className="hidden md:block flex-shrink-0 w-[320px]">
-          <MissionLog sessionId={props.sessionId} />
+          <MissionLog
+            sessionId={props.sessionId}
+            error={props.error}
+            onErrorRetry={props.onErrorRetry}
+            exportData={props.exportData}
+          />
         </div>
       </div>
     </div>
