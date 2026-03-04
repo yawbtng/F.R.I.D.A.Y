@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
+import { ShaderBackground } from '@/components/shader-background';
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -20,12 +21,12 @@ const stagger = {
 };
 
 // ---------------------------------------------------------------------------
-// Nav
+// Nav — glass-morphism with backdrop blur
 // ---------------------------------------------------------------------------
 
 function Nav() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-friday-border/50 bg-friday-bg/80 backdrop-blur-lg">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-friday-border/40 bg-friday-bg/60 backdrop-blur-xl supports-[backdrop-filter]:bg-friday-bg/40">
       <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-14">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-friday-accent shadow-glow" />
@@ -38,13 +39,13 @@ function Nav() {
             href="https://github.com/yawbtng/F.R.I.D.A.Y"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-friday-text-secondary hover:text-friday-text-primary transition-colors"
+            className="text-sm text-friday-text-secondary hover:text-friday-text-primary transition-colors duration-150 focus-ring rounded-md px-2 py-1 -mx-2 -my-1"
           >
             GitHub
           </a>
           <Link
             href="/workspace"
-            className="text-sm font-medium px-4 py-1.5 rounded-full bg-friday-accent text-white hover:bg-friday-accent-hover transition-colors"
+            className="text-sm font-medium px-4 py-1.5 rounded-full bg-friday-accent text-white hover:bg-friday-accent-hover transition-colors duration-150 shadow-glow focus-ring"
           >
             Try Friday &rarr;
           </Link>
@@ -104,6 +105,9 @@ function HeroOrb() {
 function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-14">
+      {/* Shader ripple background — fades on scroll */}
+      <ShaderBackground />
+
       <HeroOrb />
       <motion.div
         className="relative z-10 text-center px-6 max-w-3xl mx-auto"
@@ -115,7 +119,7 @@ function Hero() {
         <motion.div
           variants={fadeUp}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-friday-border bg-friday-secondary/60 text-xs text-friday-text-secondary mb-8"
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-friday-border/60 bg-friday-secondary/40 backdrop-blur-sm text-xs text-friday-text-secondary mb-8"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-friday-accent" />
           Powered by Browserbase + Stagehand
@@ -136,7 +140,7 @@ function Hero() {
         <motion.p
           variants={fadeUp}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="mt-6 text-lg sm:text-xl text-friday-text-secondary max-w-xl mx-auto"
+          className="mt-6 text-lg sm:text-xl text-friday-text-secondary max-w-xl mx-auto leading-relaxed"
         >
           Speak. Browse. Extract. All by voice.
         </motion.p>
@@ -149,7 +153,7 @@ function Hero() {
         >
           <Link
             href="/workspace"
-            className="px-8 py-3 rounded-full bg-friday-accent text-white font-medium text-sm hover:bg-friday-accent-hover transition-colors shadow-glow"
+            className="px-8 py-3 rounded-full bg-friday-accent text-white font-medium text-sm hover:bg-friday-accent-hover transition-colors duration-150 shadow-glow focus-ring"
           >
             Try Friday &rarr;
           </Link>
@@ -157,13 +161,31 @@ function Hero() {
             href="https://github.com/yawbtng/F.R.I.D.A.Y"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-8 py-3 rounded-full border border-friday-border text-friday-text-secondary text-sm font-medium hover:border-friday-border-hover hover:text-friday-text-primary transition-colors"
+            className="px-8 py-3 rounded-full border border-friday-border text-friday-text-secondary text-sm font-medium hover:border-friday-border-hover hover:text-friday-text-primary transition-colors duration-150 focus-ring"
           >
             View on GitHub
           </a>
         </motion.div>
       </motion.div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gradient separator between sections
+// ---------------------------------------------------------------------------
+
+function GradientDivider() {
+  return (
+    <div className="relative h-px mx-auto max-w-4xl">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.2) 30%, rgba(59,130,246,0.3) 50%, rgba(59,130,246,0.2) 70%, transparent 100%)',
+        }}
+      />
+    </div>
   );
 }
 
@@ -182,10 +204,18 @@ function Demo() {
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="text-3xl sm:text-4xl font-bold text-friday-text-primary mb-16"
+          className="text-3xl sm:text-4xl font-bold text-friday-text-primary mb-4"
         >
           See it in action
         </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.4, ease: 'easeOut', delay: 0.08 }}
+          className="text-friday-text-secondary mb-16 max-w-md mx-auto"
+        >
+          Watch Friday navigate, search, and extract data from the web.
+        </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -332,9 +362,9 @@ function Capabilities() {
                 ease: 'easeOut',
                 delay: 0.15 + i * 0.1,
               }}
-              className="group rounded-xl border border-friday-border bg-friday-secondary/40 p-6 hover:border-friday-border-hover hover:bg-friday-secondary/60 transition-colors"
+              className="group rounded-xl border border-friday-border bg-friday-secondary/40 p-6 hover:border-friday-border-hover hover:bg-friday-secondary/60 transition-all duration-150"
             >
-              <div className="w-10 h-10 rounded-lg bg-friday-accent/10 border border-friday-accent/20 flex items-center justify-center text-friday-accent mb-4">
+              <div className="w-10 h-10 rounded-lg bg-friday-accent/10 border border-friday-accent/20 flex items-center justify-center text-friday-accent mb-4 group-hover:bg-friday-accent/15 group-hover:border-friday-accent/30 transition-colors duration-150">
                 {cap.icon}
               </div>
               <h3 className="text-lg font-semibold text-friday-text-primary mb-2">
@@ -352,15 +382,15 @@ function Capabilities() {
 }
 
 // ---------------------------------------------------------------------------
-// Powered By
+// Powered By — enhanced with brand colors + better spacing
 // ---------------------------------------------------------------------------
 
 const poweredBy = [
-  'Browserbase',
-  'Stagehand',
-  'LiveKit',
-  'Convex',
-  'Cartesia',
+  { name: 'Browserbase', color: '#f97316' },  // orange
+  { name: 'Stagehand', color: '#a855f7' },    // purple
+  { name: 'LiveKit', color: '#22c55e' },       // green
+  { name: 'Convex', color: '#f43f5e' },        // rose
+  { name: 'Cartesia', color: '#3b82f6' },      // blue
 ];
 
 function PoweredBy() {
@@ -368,24 +398,39 @@ function PoweredBy() {
   const inView = useInView(ref, { once: true, margin: '-60px' });
 
   return (
-    <section ref={ref} className="py-20 px-6 border-t border-friday-border/50">
+    <section ref={ref} className="py-24 px-6">
+      <GradientDivider />
       <motion.div
-        className="max-w-4xl mx-auto text-center"
+        className="max-w-4xl mx-auto text-center pt-24"
         initial={{ opacity: 0 }}
         animate={inView ? { opacity: 1 } : {}}
         transition={{ duration: 0.5 }}
       >
-        <p className="text-xs uppercase tracking-widest text-friday-text-muted mb-8">
+        <p className="text-xs uppercase tracking-[0.2em] text-friday-text-muted mb-10 font-medium">
           Powered by
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-          {poweredBy.map((name) => (
-            <span
-              key={name}
-              className="text-sm font-medium text-friday-text-muted/60 tracking-wide"
+        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+          {poweredBy.map((brand, i) => (
+            <motion.span
+              key={brand.name}
+              initial={{ opacity: 0, y: 12 }}
+              animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{
+                duration: 0.3,
+                ease: 'easeOut',
+                delay: 0.1 + i * 0.08,
+              }}
+              className="text-sm font-medium tracking-wide transition-colors duration-150 cursor-default"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={(e: React.MouseEvent<HTMLSpanElement>) => {
+                (e.target as HTMLElement).style.color = brand.color;
+              }}
+              onMouseLeave={(e: React.MouseEvent<HTMLSpanElement>) => {
+                (e.target as HTMLElement).style.color = 'var(--text-muted)';
+              }}
             >
-              {name}
-            </span>
+              {brand.name}
+            </motion.span>
           ))}
         </div>
       </motion.div>
@@ -399,7 +444,7 @@ function PoweredBy() {
 
 function Footer() {
   return (
-    <footer className="py-12 px-6 border-t border-friday-border/50">
+    <footer className="py-12 px-6 border-t border-friday-border/30">
       <div className="max-w-4xl mx-auto text-center space-y-4">
         <p className="text-sm text-friday-text-secondary">
           Built with obsessive attention to detail. Open source.
@@ -408,7 +453,7 @@ function Footer() {
           href="https://github.com/yawbtng/F.R.I.D.A.Y"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-xs text-friday-text-muted hover:text-friday-text-secondary transition-colors"
+          className="inline-flex items-center gap-2 text-xs text-friday-text-muted hover:text-friday-text-secondary transition-colors duration-150 focus-ring rounded-md px-2 py-1 -mx-2 -my-1"
         >
           <svg
             className="w-4 h-4"
@@ -433,6 +478,7 @@ export default function LandingPage() {
     <main className="min-h-screen bg-friday-bg">
       <Nav />
       <Hero />
+      <GradientDivider />
       <Demo />
       <Capabilities />
       <PoweredBy />

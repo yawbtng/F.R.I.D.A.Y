@@ -105,7 +105,7 @@ export function VoiceSession({ roomName }: VoiceSessionProps) {
     return (
       <button
         onClick={connect}
-        className="px-4 py-2 bg-friday-accent text-white rounded-lg hover:bg-friday-accent/80 transition"
+        className="px-4 py-2 bg-friday-accent text-white rounded-lg hover:bg-friday-accent-hover transition-colors duration-150 ease-out focus-ring font-medium text-sm"
       >
         Connect Voice
       </button>

@@ -64,3 +64,79 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
+
+/* Selection styling */
+::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: var(--text-primary);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ---------------------------------------------------------------------------
+   Shader Background Animations
+   --------------------------------------------------------------------------- */
+
+@keyframes shader-ring-expand {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes shader-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+  }
+}
+
+.shader-ring {
+  animation: shader-ring-expand 6s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+.shader-pulse {
+  animation: shader-pulse 4s ease-in-out infinite;
+}
+
+/* Grid fade-in */
+.shader-grid {
+  animation: shader-grid-fade 2s ease-out forwards;
+}
+
+@keyframes shader-grid-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------------------
+   Global Transition Defaults
+   --------------------------------------------------------------------------- */
+
+/* Ensure all interactive elements get consistent 150ms transitions */
+.transition-colors {
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Focus ring utility — accessible visible focus */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(59, 130, 246, 0.5);
+}
