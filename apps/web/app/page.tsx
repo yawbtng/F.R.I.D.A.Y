@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { FridayShell } from '@/components/friday-shell';
 
 type OrbState = 'idle' | 'listening' | 'speaking';
@@ -79,17 +80,23 @@ export default function Home() {
   }, []);
 
   return (
-    <FridayShell
-      sessionActive={sessionActive}
-      screenshotUrl={screenshotUrl}
-      iframeSrc={debugUrl || undefined}
-      currentUrl={currentUrl}
-      sessionId={sessionId || undefined}
-      isLoading={loading}
-      orbState={orbState}
-      onTextCommand={handleTextCommand}
-      onMicToggle={handleMicToggle}
-      micActive={micActive}
-    />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
+      <FridayShell
+        sessionActive={sessionActive}
+        screenshotUrl={screenshotUrl}
+        iframeSrc={debugUrl || undefined}
+        currentUrl={currentUrl}
+        sessionId={sessionId || undefined}
+        isLoading={loading}
+        orbState={orbState}
+        onTextCommand={handleTextCommand}
+        onMicToggle={handleMicToggle}
+        micActive={micActive}
+      />
+    </motion.div>
   );
 }

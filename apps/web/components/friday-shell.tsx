@@ -37,6 +37,22 @@ interface FridayShellProps {
 // Sidebar placeholder (issue #20)
 // ---------------------------------------------------------------------------
 
+/** Animation variants for session cards sliding in from left */
+const sessionCardVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.2, ease: 'easeOut' },
+  },
+};
+
+const sessionListVariants = {
+  visible: {
+    transition: { staggerChildren: 0.05 },
+  },
+};
+
 function SessionSidebar({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="h-full flex flex-col bg-friday-surface border-r border-friday-border">
@@ -63,14 +79,22 @@ function SessionSidebar({ collapsed }: { collapsed: boolean }) {
         )}
       </div>
 
-      {/* Placeholder content */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      {/* Session cards with slide-in animation */}
+      <motion.div
+        className="flex-1 overflow-y-auto px-3 py-3"
+        variants={sessionListVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {!collapsed && (
-          <p className="text-xs text-friday-text-tertiary font-mono text-center mt-8">
+          <motion.p
+            variants={sessionCardVariants}
+            className="text-xs text-friday-text-tertiary font-mono text-center mt-8"
+          >
             Session history will appear here
-          </p>
+          </motion.p>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

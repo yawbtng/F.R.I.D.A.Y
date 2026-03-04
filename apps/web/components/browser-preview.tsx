@@ -34,12 +34,24 @@ export function BrowserPreview({
   return (
     <div className="flex flex-col gap-3">
       {/* Browser Window */}
-      <div
-        className={`
-          rounded-xl border border-friday-border overflow-hidden
-          bg-friday-surface transition-shadow duration-300
-          ${isLoading ? 'shadow-glow' : 'shadow-md'}
-        `}
+      <motion.div
+        className="rounded-xl border border-friday-border overflow-hidden bg-friday-surface"
+        animate={
+          isLoading
+            ? {
+                boxShadow: [
+                  '0 0 10px var(--accent-glow), 0 0 20px var(--accent-glow)',
+                  '0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow)',
+                  '0 0 10px var(--accent-glow), 0 0 20px var(--accent-glow)',
+                ],
+              }
+            : { boxShadow: 'var(--shadow-md)' }
+        }
+        transition={
+          isLoading
+            ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }
+            : { duration: 0.3 }
+        }
       >
         {/* Title Bar — macOS-style chrome */}
         <div className="flex items-center gap-3 px-4 py-3 bg-friday-secondary border-b border-friday-border">
@@ -153,7 +165,7 @@ export function BrowserPreview({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Controls bar */}
       <div className="flex items-center justify-between px-1">

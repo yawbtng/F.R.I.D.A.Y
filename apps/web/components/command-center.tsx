@@ -62,7 +62,7 @@ export function CommandCenter({
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className={`flex flex-col h-full min-h-0 ${sessionActive ? 'max-md:pb-40' : ''}`}>
       {/* Browser preview — slides in when session is active */}
       <AnimatePresence>
         {sessionActive && (
@@ -86,10 +86,13 @@ export function CommandCenter({
       </AnimatePresence>
 
       {/* Orb area — centered when idle, pinned to bottom when session active */}
+      {/* On mobile (<md), orb is fixed to bottom when session is active */}
       <motion.div
         layout
         className={`flex items-center justify-center ${
-          sessionActive ? 'flex-shrink-0 py-6' : 'flex-1'
+          sessionActive
+            ? 'flex-shrink-0 py-6 md:relative max-md:fixed max-md:bottom-20 max-md:left-0 max-md:right-0 max-md:z-30'
+            : 'flex-1'
         }`}
         transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
       >
