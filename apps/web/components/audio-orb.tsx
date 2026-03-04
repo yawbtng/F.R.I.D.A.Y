@@ -208,9 +208,6 @@ export function AudioOrb({
       style={{
         width: ORB_SIZE + 64, // extra space for waveform bars + pulse rings
         height: ORB_SIZE + 64,
-        ['--accent-primary' as string]: '#3b82f6',
-        ['--visualizer-glow' as string]: 'rgba(59, 130, 246, 0.4)',
-        ['--friday-pulse' as string]: 'rgba(59, 130, 246, 0.08)',
       }}
     >
       {/* Ambient background glow */}
