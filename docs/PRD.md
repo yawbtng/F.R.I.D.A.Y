@@ -534,7 +534,7 @@ Friday is modeled after **F.R.I.D.A.Y.** (Female Replacement Intelligent Digital
 const FRIDAY_SYSTEM_PROMPT = `You are Friday — a voice AI assistant with full browser control and web search capabilities. You're modeled after F.R.I.D.A.Y., Tony Stark's AI. You're sharp, tactical, and efficient. You call the user "Boss" occasionally (not every message — once every 4-5 exchanges feels natural).
 
 ## Voice
-- Speak in short, direct sentences. You're talking out loud, not writing. Max 2-3 sentences per response unless asked for more.
+- Speak in short, direct sentences. You're talking out loud, not writing. Max 3-4 sentences per response unless asked for more.
 - Lead with the answer or action, not the reasoning. Say "Pulling that up now" not "I'll use my navigation tool to access the website for you."
 - Be proactive. If you notice something useful while browsing, mention it: "Found what you need, but there's also a comparison chart here — want me to grab that too?"
 - When things go wrong, stay calm and state the fix: "Page timed out. Retrying now." No apologies, no drama.
@@ -948,11 +948,13 @@ Friday - VBA/
 │       │   ├── ui/                      # shadcn primitives (button, card, input...)
 │       │   ├── app/
 │       │   │   ├── friday-shell.tsx     # Main layout: 3-column responsive grid
-│       │   │   ├── session-view.tsx     # Voice interface: visualizer + transcript + controls
-│       │   │   ├── browser-preview.tsx  # Screenshot display + debug iframe toggle
-│       │   │   ├── session-sidebar.tsx  # Convex-powered session history list
-│       │   │   ├── command-feed.tsx     # Real-time feed of commands in current session
-│       │   │   └── example-commands.tsx # Clickable demo command chips
+│       │   │   ├── command-center.tsx   # Center column: browser-preview + orb + controls
+│       │   │   ├── audio-orb.tsx        # Pulsing orb visualizer (pinned to bottom)
+│       │   │   ├── browser-preview.tsx  # Compact debug iframe/screenshot (above orb)
+│       │   │   ├── mission-log.tsx      # Right column: transcript + inline screenshots
+│       │   │   ├── session-sidebar.tsx  # Left column: Convex-powered session history
+│       │   │   ├── example-commands.tsx # Clickable demo command chips (right column bottom)
+│       │   │   └── export-session.tsx   # Export session as markdown or PDF
 │       │   └── providers/
 │       │       └── convex-provider.tsx  # "use client" Convex wrapper
 │       ├── lib/
@@ -1329,50 +1331,119 @@ CREATE ──→ ACTIVE ──→ IDLE (no commands for 5 min)
 
 ### 7.1 Layout (3-Column Responsive)
 
+**Design philosophy**: The center column is the "cockpit" — controls at the bottom (orb + mic + keyboard), live browser feed above. The right column is the "mission log" — full transcript, inline screenshots, and export. The orb lives near the user's thumb/cursor so double-clicking the keyboard puts you right at the action.
+
 ```
-┌──────────┬─────────────────────────────────┬──────────────────────┐
-│          │                                 │                      │
-│ Session  │     Session View                │   Browser Preview    │
-│ Sidebar  │                                 │                      │
-│          │  ┌───────────────────────────┐  │  ┌────────────────┐  │
-│ [+ New]  │  │   Audio Visualizer        │  │  │                │  │
-│          │  │   (orb/waveform)          │  │  │  Screenshot    │  │
-│ Session 1│  └───────────────────────────┘  │  │  or Debug      │  │
-│ Session 2│                                 │  │  Iframe         │  │
-│ Session 3│  ┌───────────────────────────┐  │  │                │  │
-│          │  │   Chat Transcript          │  │  └────────────────┘  │
-│          │  │   (scrollable)            │  │                      │
-│          │  │   User: "go to HN"        │  │  URL: news.yc...    │
-│          │  │   Friday: "Navigating..." │  │                      │
-│          │  │   Friday: "I found 3..."  │  │  [Live] [Screenshot] │
-│          │  └───────────────────────────┘  │                      │
-│          │                                 │                      │
-│          │  ┌───────────────────────────┐  │                      │
-│          │  │ [🎤 Hold to speak]  [Type]│  │                      │
-│          │  └───────────────────────────┘  │                      │
-│          │                                 │                      │
-│          │  ┌─ Example Commands ─────────┐ │                      │
-│          │  │ [Search HN] [Read article] │ │                      │
-│          │  │ [Compare prices] [Extract] │ │                      │
-│          │  └───────────────────────────┘  │                      │
-└──────────┴─────────────────────────────────┴──────────────────────┘
+┌──────────────┬──────────────────────────────────┬────────────────────────────┐
+│              │                                  │                            │
+│  Session     │     Command Center               │    Mission Log             │
+│  Sidebar     │                                  │                            │
+│              │                                  │  ┌──────────────────────┐  │
+│ [+ New]      │                                  │  │ Chat Transcript      │  │
+│              │                                  │  │ (scrollable)         │  │
+│ Session 1    │  ┌────────────────────────────┐  │  │                      │  │
+│  ● active    │  │ ● ● ●  news.ycombin...  ↻  │  │  │ User: "go to HN"    │  │
+│ Session 2    │  │ ┌──────────────────────┐  │  │  │ Friday: "On it."     │  │
+│ Session 3    │  │ │                      │  │  │  │                      │  │
+│              │  │ │  Browserbase Debug   │  │  │  │ ┌──────────────────┐  │  │
+│              │  │ │  Iframe (live)       │  │  │  │ │ 📸 screenshot    │  │  │
+│              │  │ │                      │  │  │  │ │ (inline thumb)   │  │  │
+│              │  │ └──────────────────────┘  │  │  │ └──────────────────┘  │  │
+│              │  └────────────────────────────┘  │  │                      │  │
+│              │  ┌───────────────┐              │  │ Friday: "Top 3:     │  │
+│              │  │  ◉ Orb        │              │  │  1. Story A         │  │
+│              │  │ (pulsing,     │              │  │  2. Story B..."     │  │
+│              │  │  centered)    │              │  │                      │  │
+│              │  └───────────────┘              │  └──────────────────────┘  │
+│              │  ┌────────────────────────────┐ │                            │
+│              │  │ [🎤 Hold to speak] [⌨ Type]│ │                            │
+│              │  └────────────────────────────┘ │                            │
+│              │  ┌──── Example Commands ────┐   │                            │
+│              │  │ [Search HN]              │   │                            │
+│              │  │ [Read top story]         │   │                            │
+│              │  │ [Compare prices]         │   │                            │
+│              │  │ [Extract GitHub]         │   │                            │
+│              │  └──────────────────────────┘   │  [📥 Export Session ▾]     │
+└──────────────┴──────────────────────────────────┴────────────────────────────┘
 ```
+
+**Column breakdown**:
+
+| Column | Role | Key Behavior |
+|--------|------|-------------|
+| **Left — Session Sidebar** | Session history list | `+ New` at top, active session highlighted, click to switch |
+| **Center — Command Center** | Live browser + controls | Browser iframe appears above orb once session starts. Orb + controls pinned to bottom. Idle state: just the orb and controls. |
+| **Right — Mission Log** | Transcript + screenshots + export | Scrollable chat with inline screenshot thumbnails. Example command chips at bottom. Export button (MD/PDF) at very bottom. |
+
+**Center column states**:
+
+1. **Idle** (no session): Orb + controls centered vertically, subtle breathing animation. Clean, inviting.
+2. **Session active**: Browser iframe slides in from above, pushing the orb down. Orb stays pinned to bottom with controls beneath it. The iframe gets ~60% of the column height, the orb gets ~25%, controls get ~15%.
+3. **Friday speaking**: Orb expands slightly with waveform bars. Browser iframe stays visible above — user sees the page AND the orb simultaneously.
+
+**Browser iframe overlay behavior**:
+- The iframe appears as a compact browser preview (fake chrome + URL bar) sitting ABOVE the orb
+- It overlaps the orb slightly at the bottom edge (8-16px overlap) to create visual continuity — the orb feels like a "control knob" for the browser above it
+- When no browser session exists, this area is empty and the orb floats in the center
 
 **Responsive breakpoints**:
 - Desktop (≥1280px): 3 columns as shown
-- Tablet (≥768px): Sidebar collapses to icons, 2 columns
-- Mobile (<768px): Single column, browser preview becomes a sheet/modal
+- Tablet (≥768px): Sidebar collapses to icons, 2 columns (center + right merge, orb stays at bottom)
+- Mobile (<768px): Single column, stacked. Orb + controls fixed to bottom of viewport. Mission log scrolls above. Browser preview becomes a swipeable sheet.
 
 ### 7.2 Component Responsibilities
 
 | Component | Data Source | Key Props/State |
 |-----------|------------|-----------------|
-| `friday-shell.tsx` | Layout only | Responsive grid, dark theme wrapper |
-| `session-view.tsx` | LiveKit room state | Audio visualizer, transcript, mic controls |
-| `browser-preview.tsx` | Latest screenshot from API | base64 image, crossfade animation, debug URL toggle |
+| `friday-shell.tsx` | Layout only | Responsive 3-column grid, dark theme wrapper |
+| `command-center.tsx` | LiveKit room state | Contains browser-preview (top) + orb (bottom) + controls |
+| `audio-orb.tsx` | LiveKit audio track | Pulsing orb, waveform on speak, breathing on idle. Pinned to bottom of center column. |
+| `browser-preview.tsx` | Convex `useQuery` + debug URL | Compact iframe/screenshot above orb. Slides in when session starts. |
+| `mission-log.tsx` | Convex `useQuery(api.commands.bySession)` | Scrollable transcript with inline screenshot thumbnails |
 | `session-sidebar.tsx` | `useQuery(api.sessions.list)` | Real-time session list from Convex |
-| `command-feed.tsx` | `useQuery(api.commands.bySession)` | Live command history for active session |
-| `example-commands.tsx` | Static data | Clickable chips that trigger voice/text commands |
+| `example-commands.tsx` | Static data | Clickable chips in right column bottom |
+| `export-session.tsx` | Convex session data + screenshots | Export button: markdown or PDF download with all screenshots |
+
+### 7.2.1 Session Export
+
+When a session is complete (or anytime during), the user can click **Export Session** in the bottom-right corner.
+
+**Export formats**:
+
+| Format | Contents | Implementation |
+|--------|----------|---------------|
+| **Markdown** | Full transcript (user + Friday), embedded screenshot URLs, timestamps, tools used per command | Generate `.md` string client-side, trigger download via `Blob` + `URL.createObjectURL` |
+| **PDF** | Same as markdown but rendered with headings, inline screenshot images, monospace for data | Use `@react-pdf/renderer` or `html2pdf.js` to convert the markdown view to PDF |
+
+**Export structure**:
+```markdown
+# F.R.I.D.A.Y. Session Export
+**Date**: 2026-03-04 14:32 UTC
+**Duration**: 12 minutes
+**Commands**: 8
+
+---
+
+## Command 1 — 14:32:05
+**User**: "Go to Hacker News and tell me the top 3 stories"
+**Tools**: navigate, extract
+**Duration**: 4.2s
+
+**Friday**: "Loading Hacker News now... Got it. Top three:
+1. Story A at 340 points
+2. Story B at 280 points
+3. Story C at 215 points.
+Want me to click into any of these?"
+
+![Screenshot](screenshot-1.png)
+
+---
+
+## Command 2 — 14:32:45
+...
+```
+
+**Convex query for export**: `api.commands.bySession` already returns all commands with screenshots. The export component fetches the full session, formats it, and triggers a download. Screenshots stored in Convex file storage are fetched via `useQuery` and embedded as data URLs in the PDF or linked in markdown.
 
 ### 7.3 Design System — "Stark Industries Terminal"
 
@@ -1446,10 +1517,12 @@ CREATE ──→ ACTIVE ──→ IDLE (no commands for 5 min)
 
 ### 7.4 Key UI Patterns
 
-**Audio Visualizer** (center of session view):
+**Audio Visualizer Orb** (bottom of center column — near controls):
 - Circular orb with pulsing blue glow when Friday is listening
 - Waveform bars emanate outward when Friday is speaking
 - Idle state: subtle breathing animation (scale 1.0 → 1.02, opacity pulse)
+- **Position**: Pinned to the bottom of the center column, directly above the mic/keyboard controls. Double-clicking the keyboard puts the orb right in view.
+- When browser session is active: orb sits below the browser iframe with a slight overlap (8-16px) at the top edge of the orb, creating visual continuity between "what Friday is doing" (iframe) and "Friday herself" (orb)
 - Inspired by: 21st.dev `Waveform` component + custom orb animation
 
 **Browser Preview Frame**:
@@ -1480,22 +1553,30 @@ CREATE ──→ ACTIVE ──→ IDLE (no commands for 5 min)
 - Hover: `--bg-tertiary` background
 - "+ New Session" button at top with blue accent
 
-**Command Chips** (example commands):
+**Command Chips** (example commands — right column, bottom):
 ```
-┌──────────────────────────────────────────────────────────┐
-│ Try saying:                                              │
-│ ┌──────────────────┐ ┌────────────────────────────────┐  │
-│ │ 🔍 Search HN     │ │ 📰 Read top story              │  │
-│ └──────────────────┘ └────────────────────────────────┘  │
-│ ┌──────────────────────────┐ ┌────────────────────────┐  │
-│ │ 💰 Compare iPhone prices │ │ 📊 Extract GitHub data │  │
-│ └──────────────────────────┘ └────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────┐
+│ Try saying:                  │
+│ ┌──────────────────────────┐ │
+│ │ 🔍 Search HN             │ │
+│ └──────────────────────────┘ │
+│ ┌──────────────────────────┐ │
+│ │ 📰 Read top story        │ │
+│ └──────────────────────────┘ │
+│ ┌──────────────────────────┐ │
+│ │ 💰 Compare iPhone prices │ │
+│ └──────────────────────────┘ │
+│ ┌──────────────────────────┐ │
+│ │ 📊 Extract GitHub data   │ │
+│ └──────────────────────────┘ │
+└──────────────────────────────┘
 ```
+- Stacked vertically in right column (narrower space than before)
 - Rounded pill shape `--radius-full`
 - `--bg-tertiary` background, `--border-default` border
 - Hover: subtle blue glow, border transitions to `--border-active`
 - Click: triggers the command as if the user spoke it
+- Sits above the Export Session button at the very bottom
 
 ### 7.5 Landing Page Design & Copy
 
