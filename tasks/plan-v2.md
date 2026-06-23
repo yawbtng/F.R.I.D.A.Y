@@ -74,8 +74,12 @@
       `{state,status,details?,raw,ms}` contract → aggregate `SwarmResult`. ⏭ live worker (navigate+extract).
 - [x] **Graceful partial-failure done:** a throwing/timing-out worker → status `error`; swarm returns
       "X of N", flagged, never crashes (CRITICAL test #2 green). ⏭ retry + cached last-good fallback.
-- [ ] **Mission-control grid HUD:** live-view iframe tiles; light up on activity, gray out on failure;
-      per-tile result badge (Active/Inactive/Not found).
+- [x] **Mission-control grid HUD built** (branch `feat/grid-hud`): `/swarm` page spawns a fleet and
+      fans out one Stagehand agent + structured extract per state, lighting each browser-chrome tile
+      live (Queued → Working pulse → Active/Inactive/Not found/Error + timing badge), with X/N + elapsed
+      header. **Client-driven** (no backend orchestrator) so it deploys to Vercel unchanged; web-owned
+      adapter copy in `apps/web/lib/sos-adapters.ts`. Per-IP rate ceiling raised on fan-out routes.
+      ⏭ click-to-expand WebPreview view (Phase 2 polish); verify the grid visually + at scale.
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
 - [ ] **Measure latency** on ~10 states; set the narration number from reality.
 - [ ] **Verify (GATE):** one text command → ~20 browsers fan out → grid lights up → synthesized
