@@ -88,8 +88,11 @@
       20-state run. See [[stagehand_keepalive_release]].
 - [x] **Reliability + portals:** sharpened agent goal (accept terms gates, wait for results, best active
       match) + `maxSteps` 14→25; registry expanded to **20 status-public states**. Baseline (Walmart Inc.):
-      **13/20 definitive** (CA FL NY CO NC PA WA MA MN OR TN AZ active; GA flagged wrong-match). Flaky:
-      IL MI OH VA CT UT NV. ⏭ retry-on-notfound and/or search-discovery (Exa) to lift the tail.
+      **13/20 definitive** (CA FL NY CO NC PA WA MA MN OR TN AZ active; GA flagged wrong-match).
+- [x] **`Blocked` status** (CAPTCHA/anti-bot/unreachable) + sharper "stop on block" goal: IL/OH/NV now
+      report `blocked` honestly AND fast (NV 115s→11s) instead of a misleading `notfound`. Net 20-grid:
+      ~13 verified + 3 blocked + 4 flaky (MI VA CT UT). ⏭ retry-on-notfound for the flaky 4;
+      search-discovery (Exa) for true autonomy; Browserbase session **replay** in the focus modal.
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
 - [ ] **Measure latency** on ~10 states; set the narration number from reality.
 - [ ] **Verify (GATE):** one text command → ~20 browsers fan out → grid lights up → synthesized
