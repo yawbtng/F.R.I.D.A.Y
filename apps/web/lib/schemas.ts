@@ -37,3 +37,12 @@ export const SearchSchema = z.object({
 export const ScreenshotSchema = z.object({
   sessionId: z.string().min(1),
 });
+
+// Fleet: spawn N browsers for a swarm run. Cap at the Developer-tier concurrency limit.
+export const FleetSpawnSchema = z.object({
+  count: z.number().int().min(1).max(25),
+});
+
+export const FleetCloseSchema = z.object({
+  sessionId: z.string().min(1),
+});

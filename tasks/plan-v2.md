@@ -64,12 +64,13 @@
       (`AgentContext {sessionId, token, signal?}`, own AbortController, 30s timeout); `_browserSessionId`
       → per-process voice context. 47 tests green incl. concurrent-fetch regression. ⏭ Browser
       *registry* + `browserId` routing still to come with `/api/fleet`.
-- [ ] `POST /api/fleet` → spawn (`bb.sessions.create` + `bb.sessions.debug`) → `{browserId,sessionId,
-      liveViewUrl}`. `DELETE /api/fleet/:id` → clean close. Concurrency cap + backoff.
-- [ ] **Fan-out orchestrator:** iterate the registry → one browser per state worker via `Promise.all`
-      (capped) → each returns the worker-contract object → synthesize aggregate result.
-- [ ] **Graceful partial-failure:** per-worker timeout + retry; cached last-good fallback; swarm
-      returns "X of N verified", failures flagged, never crashes.
+- [x] **`/api/fleet` built:** POST spawns N sessions (batched, cap 25) → `{browserId,sessionId,
+      liveViewUrl,token}`; DELETE closes one. Shared `createBrowserSession()` helper. ⏭ live-verify
+      spawn against tier + retry/backoff on LLM rate limits.
+- [x] **Fan-out orchestrator built:** `runSwarm` over a capped worker pool → each worker returns the
+      `{state,status,details?,raw,ms}` contract → aggregate `SwarmResult`. ⏭ live worker (navigate+extract).
+- [x] **Graceful partial-failure done:** a throwing/timing-out worker → status `error`; swarm returns
+      "X of N", flagged, never crashes (CRITICAL test #2 green). ⏭ retry + cached last-good fallback.
 - [ ] **Mission-control grid HUD:** live-view iframe tiles; light up on activity, gray out on failure;
       per-tile result badge (Active/Inactive/Not found).
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
