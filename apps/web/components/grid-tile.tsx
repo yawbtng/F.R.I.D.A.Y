@@ -24,15 +24,25 @@ const META: Record<TileState, StatusMeta> = {
 
 const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'error'];
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 interface GridTileProps {
   stateCode: string;
   stateName: string;
+  /** Portal entry URL — its host is shown in the chrome's address pill. */
+  url: string;
   liveViewUrl: string;
   status: TileState;
   ms?: number;
 }
 
-export function GridTile({ stateCode, stateName, liveViewUrl, status, ms }: GridTileProps) {
+export function GridTile({ stateCode, stateName, url, liveViewUrl, status, ms }: GridTileProps) {
   const m = META[status];
   const working = status === 'working';
 
@@ -60,15 +70,24 @@ export function GridTile({ stateCode, stateName, liveViewUrl, status, ms }: Grid
         />
       )}
 
-      {/* Header: state + status */}
-      <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] border-b border-white/[0.06]">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-mono font-semibold text-friday-text-primary">{stateCode}</span>
-          <span className="text-[10px] text-friday-text-tertiary truncate">{stateName}</span>
+      {/* Browser chrome: traffic lights · state + address pill · status */}
+      <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white/[0.03] border-b border-white/[0.06]">
+        <div className="flex items-center gap-[5px] shrink-0">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
         </div>
+
+        <div className="flex-1 min-w-0 flex items-center gap-2 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
+          <span className="text-[10px] font-mono font-semibold text-friday-text-primary shrink-0">{stateCode}</span>
+          <span className="text-[10px] font-mono text-friday-text-tertiary truncate" title={stateName}>
+            {hostOf(url)}
+          </span>
+        </div>
+
         <div className={`flex items-center gap-1.5 shrink-0 ${m.text}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${m.dot} ${working ? 'animate-pulse' : ''}`} />
-          <span className="text-[10px] font-medium uppercase tracking-wide">{m.label}</span>
+          <span className="text-[9px] font-medium uppercase tracking-wide">{m.label}</span>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ export type { TileState };
 export interface Tile {
   state: string;
   name: string;
+  url: string;
   sessionId: string;
   token: string;
   liveViewUrl: string;
@@ -23,6 +24,7 @@ export function SwarmGrid({ tiles }: { tiles: Tile[] }) {
           key={t.state}
           stateCode={t.state}
           stateName={t.name}
+          url={t.url}
           liveViewUrl={t.liveViewUrl}
           status={t.status}
           ms={t.ms}

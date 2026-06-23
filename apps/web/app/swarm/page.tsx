@@ -115,6 +115,7 @@ export default function SwarmPage() {
         states.map((s, i) => ({
           state: s,
           name: STATE_ADAPTERS[s].name,
+          url: STATE_ADAPTERS[s].searchUrl,
           sessionId: browsers[i].sessionId,
           token: browsers[i].token,
           liveViewUrl: browsers[i].liveViewUrl,
