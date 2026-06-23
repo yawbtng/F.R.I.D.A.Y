@@ -26,7 +26,8 @@ interface SpawnedBrowser {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // One spawn per run, but allow several runs/minute from the same demo machine.
+  if (!rateLimit(ip, 60)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 
