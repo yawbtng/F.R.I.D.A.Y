@@ -6,10 +6,10 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true,
-    "sourceMap": true,
+    // The agent runs via tsx (see package.json dev/start), so dist/ is never executed.
+    // `pnpm build` is a typecheck only: noEmit avoids generating non-portable .d.ts for
+    // the imported Convex API (TS2742) and stops compiled JS leaking into convex/.
+    "noEmit": true,
     "paths": {
       "@convex/*": ["../convex/*"]
     }
