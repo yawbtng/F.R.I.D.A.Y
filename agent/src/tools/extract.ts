@@ -3,7 +3,7 @@
 import { llm } from '@livekit/agents';
 import { z } from 'zod';
 import { agentFetchWithHeartbeat } from '../lib/agent-fetch.js';
-import { getBrowserSessionId } from './shared.js';
+import { getVoiceContext } from './shared.js';
 
 interface ExtractResult {
   data: unknown;
@@ -24,7 +24,7 @@ export const extract = llm.tool({
       {
         path: '/api/browser/extract',
         body: { instruction },
-        sessionId: getBrowserSessionId(),
+        ctx: getVoiceContext(),
         timeoutMs: 30_000,
       },
       ctx.session,

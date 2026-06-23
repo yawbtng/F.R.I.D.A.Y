@@ -24,25 +24,26 @@ describe('Agent Tools Smoke Test', () => {
     }
   });
 
-  it('shared.ts exports setBrowserSessionId and getBrowserSessionId', () => {
+  it('shared.ts exports setVoiceContext and getVoiceContext', () => {
     const sharedPath = path.join(TOOLS_DIR, 'shared.ts');
     expect(fs.existsSync(sharedPath)).toBe(true);
 
     const content = fs.readFileSync(sharedPath, 'utf-8');
-    expect(content).toContain('export function setBrowserSessionId');
-    expect(content).toContain('export function getBrowserSessionId');
+    expect(content).toContain('export function setVoiceContext');
+    expect(content).toContain('export function getVoiceContext');
   });
 
-  it('shared state setters work correctly', async () => {
-    // shared.ts has no external deps so we can import it directly
+  it('voice context setter/getter round-trips the session + token', async () => {
+    // shared.ts only type-imports agent-fetch, so it imports cleanly on its own
     const shared = await import('../../agent/src/tools/shared.js').catch(() => null);
     if (!shared) {
       // Skip if import fails due to module resolution
       return;
     }
 
-    shared.setBrowserSessionId('test-session-123');
-    expect(shared.getBrowserSessionId()).toBe('test-session-123');
+    shared.setVoiceContext({ sessionId: 'test-session-123', token: 'tok-abc' });
+    expect(shared.getVoiceContext().sessionId).toBe('test-session-123');
+    expect(shared.getVoiceContext().token).toBe('tok-abc');
   });
 
   it('each tool file imports agentFetch and uses llm.tool', () => {

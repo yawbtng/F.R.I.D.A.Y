@@ -52,7 +52,7 @@
 - [x] `pnpm install` clean · `pnpm test` green (45/45, 5 integration skipped) · `pnpm build` green.
 - [x] Bitrot fixed: agent `tsc` emitted non-portable Convex `.d.ts` (TS2742) + leaked JS into
       `convex/`. Set agent build to typecheck-only (`noEmit`) — it runs via `tsx`, dist unused.
-- [ ] **Upgrade Browserbase to Developer ($20).** Free won't run the swarm (gates live runs only).
+- [x] **Browserbase upgraded** (2026-06-23) — live swarm runs unblocked.
 - [ ] Verify single-browser flow end-to-end (type URL → screenshot) — needs upgrade + 3 dev
       processes (`npx convex dev`, agent worker, `pnpm dev`). Manual smoke.
 
@@ -60,8 +60,10 @@
 - [ ] **PRE-TASK (do first): build `states.json` adapter registry** for a committed curated subset of
       8-12 genuinely-distinct, stable, no-CAPTCHA SoS portals (e.g. CA, TX, NY, DE, FL, WA, CO, IL...).
       Each adapter: `{ state, searchUrl, inputFields, resultSelectors|extractPrompt, antiBotFlag }`.
-- [ ] **Kill the singleton:** replace `_browserSessionId` in `agent/src/tools/shared.ts` with the
-      browser registry; tools take `browserId`.
+- [x] **Kill the singleton (Lane A foundation, done):** `agent-fetch.ts` is now stateless per-worker
+      (`AgentContext {sessionId, token, signal?}`, own AbortController, 30s timeout); `_browserSessionId`
+      → per-process voice context. 47 tests green incl. concurrent-fetch regression. ⏭ Browser
+      *registry* + `browserId` routing still to come with `/api/fleet`.
 - [ ] `POST /api/fleet` → spawn (`bb.sessions.create` + `bb.sessions.debug`) → `{browserId,sessionId,
       liveViewUrl}`. `DELETE /api/fleet/:id` → clean close. Concurrency cap + backoff.
 - [ ] **Fan-out orchestrator:** iterate the registry → one browser per state worker via `Promise.all`

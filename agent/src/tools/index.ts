@@ -7,7 +7,7 @@ export { extract } from './extract.js';
 export { observe } from './observe.js';
 export { screenshot } from './screenshot.js';
 export { webSearch } from './exa-search.js';
-export { setBrowserSessionId, getBrowserSessionId } from './shared.js';
+export { setVoiceContext, getVoiceContext } from './shared.js';
 
 // Re-export all tools as a record for passing to voice.Agent
 import { llm } from '@livekit/agents';

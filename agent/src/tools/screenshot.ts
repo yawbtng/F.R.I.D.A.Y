@@ -2,7 +2,7 @@
 
 import { llm } from '@livekit/agents';
 import { agentFetch } from '../lib/agent-fetch.js';
-import { getBrowserSessionId } from './shared.js';
+import { getVoiceContext } from './shared.js';
 
 interface ScreenshotResult {
   screenshot: string;
@@ -17,7 +17,7 @@ export const screenshot = llm.tool({
     await agentFetch<ScreenshotResult>({
       path: '/api/browser/screenshot',
       body: {},
-      sessionId: getBrowserSessionId(),
+      ctx: getVoiceContext(),
     });
 
     return 'Screenshot captured and sent to the user.';

@@ -4,8 +4,7 @@
 
 import { defineAgent, voice, inference, type JobContext, type JobProcess } from '@livekit/agents';
 import * as silero from '@livekit/agents-plugin-silero';
-import { agentTools, setBrowserSessionId } from './tools/index.js';
-import { setSessionToken } from './lib/agent-fetch.js';
+import { agentTools, setVoiceContext } from './tools/index.js';
 import { FRIDAY_SYSTEM_PROMPT } from './friday-agent.js';
 
 // British Lady voice ID for Cartesia
@@ -44,8 +43,7 @@ export default defineAgent({
     }
 
     const sessionData = (await sessionRes.json()) as { sessionId: string; token: string };
-    setSessionToken(sessionData.token);
-    setBrowserSessionId(sessionData.sessionId);
+    setVoiceContext({ sessionId: sessionData.sessionId, token: sessionData.token });
 
     const agent = new voice.Agent({
       instructions: FRIDAY_SYSTEM_PROMPT,

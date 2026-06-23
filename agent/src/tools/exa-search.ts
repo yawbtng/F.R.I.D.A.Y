@@ -4,7 +4,7 @@
 import { llm } from '@livekit/agents';
 import { z } from 'zod';
 import { agentFetch } from '../lib/agent-fetch.js';
-import { getBrowserSessionId } from './shared.js';
+import { getVoiceContext } from './shared.js';
 
 interface SearchResultItem {
   title: string;
@@ -28,7 +28,7 @@ export const webSearch = llm.tool({
     const result = await agentFetch<SearchResult>({
       path: '/api/browser/search',
       body: { query },
-      sessionId: getBrowserSessionId(),
+      ctx: getVoiceContext(),
     });
 
     if (result.results.length === 0) {
