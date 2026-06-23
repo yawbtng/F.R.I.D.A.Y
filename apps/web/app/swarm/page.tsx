@@ -7,6 +7,7 @@
 // Vercel unchanged.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import {
   STATE_ADAPTERS,
   SUPPORTED_STATES,
@@ -16,6 +17,7 @@ import {
   type WorkerStatus,
 } from '@/lib/sos-adapters';
 import { SwarmGrid, type Tile, type TileState } from '@/components/swarm-grid';
+import { BrowserModal } from '@/components/browser-modal';
 
 interface SpawnedBrowser {
   browserId: string;
@@ -56,14 +58,33 @@ async function verifyState(b: SpawnedBrowser, state: string, entity: string): Pr
   return mapStatus((await exRes.json()).data);
 }
 
-/** Best-effort release of the cloud sessions so we don't leak (and bill) idle browsers. */
+/** Release one cloud session immediately so it stops billing. */
+function releaseOne(b: SpawnedBrowser) {
+  fetch('/api/fleet', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: b.sessionId }),
+  }).catch(() => {});
+}
+
+/** Best-effort release of any still-open sessions (unmount / reset safety net). */
 function releaseFleet(browsers: SpawnedBrowser[]) {
-  for (const b of browsers) {
-    fetch('/api/fleet', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+  for (const b of browsers) releaseOne(b);
+}
+
+/** Capture the final page as a data-URL so the tile can freeze after the session closes. */
+async function captureFrame(b: SpawnedBrowser): Promise<string | undefined> {
+  try {
+    const res = await fetch('/api/browser/screenshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${b.token}` },
       body: JSON.stringify({ sessionId: b.sessionId }),
-    }).catch(() => {});
+    });
+    if (!res.ok) return undefined;
+    const { screenshot } = (await res.json()) as { screenshot?: string };
+    return screenshot ? `data:image/jpeg;base64,${screenshot}` : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -75,6 +96,7 @@ export default function SwarmPage() {
   const [error, setError] = useState('');
   const [startTs, setStartTs] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [focusedState, setFocusedState] = useState<string | null>(null);
   const fleetRef = useRef<SpawnedBrowser[]>([]);
 
   // Release the fleet if the user navigates away mid-run.
@@ -132,12 +154,16 @@ export default function SwarmPage() {
         states.map(async (s, i) => {
           const t0 = Date.now();
           updateTile(i, { status: 'working' });
+          let status: TileState = 'error';
           try {
-            const status = await verifyState(browsers[i], s, name);
-            updateTile(i, { status, ms: Date.now() - t0 });
+            status = await verifyState(browsers[i], s, name);
           } catch {
-            updateTile(i, { status: 'error', ms: Date.now() - t0 });
+            status = 'error';
           }
+          // Freeze the final frame, then release the session so it stops billing.
+          const screenshotUrl = await captureFrame(browsers[i]);
+          updateTile(i, { status, ms: Date.now() - t0, screenshotUrl });
+          releaseOne(browsers[i]);
         }),
       );
 
@@ -161,6 +187,7 @@ export default function SwarmPage() {
   const verified = tiles.filter((t) => t.status === 'active' || t.status === 'inactive' || t.status === 'notfound').length;
   const errored = tiles.filter((t) => t.status === 'error').length;
   const running = phase === 'running' || phase === 'spawning';
+  const focusedTile = focusedState ? tiles.find((t) => t.state === focusedState) ?? null : null;
 
   return (
     <div className="min-h-screen w-full bg-friday-bg text-friday-text-primary">
@@ -259,8 +286,14 @@ export default function SwarmPage() {
         )}
 
         {/* Grid */}
-        {(phase === 'running' || phase === 'done') && <SwarmGrid tiles={tiles} />}
+        {(phase === 'running' || phase === 'done') && (
+          <SwarmGrid tiles={tiles} onSelect={(t) => setFocusedState(t.state)} />
+        )}
       </div>
+
+      <AnimatePresence>
+        {focusedTile && <BrowserModal tile={focusedTile} onClose={() => setFocusedState(null)} />}
+      </AnimatePresence>
     </div>
   );
 }

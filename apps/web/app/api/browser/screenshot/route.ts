@@ -15,7 +15,9 @@ const convex = process.env.NEXT_PUBLIC_CONVEX_URL
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // Part of the swarm fan-out (one freeze-frame per tile on completion); the per-IP
+  // counter is shared across routes, so match the agent/extract ceiling.
+  if (!rateLimit(ip, 120)) {
     return Response.json(
       { error: "Too many requests", code: "RATE_LIMITED" },
       { status: 429 },

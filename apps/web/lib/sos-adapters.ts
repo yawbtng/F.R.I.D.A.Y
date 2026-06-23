@@ -40,8 +40,10 @@ export const STATUS_EXTRACT =
   "Use 'inactive' for expired/dissolved/revoked/forfeited entities, and 'notfound' if the page " +
   "shows no entity record (e.g. it is still a search/results page with no match).";
 
-// Status-public portals only. CA + FL are verified live; NY adapter built, verify before demo.
-// Expansion target: 8-12 status-public states (add each here once verified in the grid).
+// Status-public, free portals only (status shown on the public record, no login/payment).
+// Curated from research + live verification; pay-to-view (DE, NJ), status-not-free (TX),
+// CAPTCHA (AZ), and mid-migration (NV) portals are deliberately excluded. Each URL must be
+// confirmed live (apps/web/scripts/verify-states.ts) before it's trusted on camera.
 export const STATE_ADAPTERS: Record<string, StateAdapter> = {
   CA: {
     state: "CA",
@@ -59,6 +61,60 @@ export const STATE_ADAPTERS: Record<string, StateAdapter> = {
     state: "NY",
     name: "New York",
     searchUrl: "https://apps.dos.ny.gov/publicInquiry/",
+    agentGoal: GOAL,
+  },
+  CO: {
+    state: "CO",
+    name: "Colorado",
+    searchUrl: "https://www.sos.state.co.us/biz/BusinessEntityCriteriaExt.do",
+    agentGoal: GOAL,
+  },
+  GA: {
+    state: "GA",
+    name: "Georgia",
+    searchUrl: "https://ecorp.sos.ga.gov/BusinessSearch",
+    agentGoal: GOAL,
+  },
+  IL: {
+    state: "IL",
+    name: "Illinois",
+    searchUrl: "https://apps.ilsos.gov/businessentitysearch/",
+    agentGoal: GOAL,
+  },
+  MI: {
+    state: "MI",
+    name: "Michigan",
+    searchUrl: "https://mibusinessregistry.lara.state.mi.us/search/business",
+    agentGoal: GOAL,
+  },
+  NC: {
+    state: "NC",
+    name: "North Carolina",
+    searchUrl: "https://www.sosnc.gov/online_services/search/by_title/_Business_Registration",
+    agentGoal: GOAL,
+  },
+  OH: {
+    state: "OH",
+    name: "Ohio",
+    searchUrl: "https://businesssearch.ohiosos.gov/",
+    agentGoal: GOAL,
+  },
+  PA: {
+    state: "PA",
+    name: "Pennsylvania",
+    searchUrl: "https://file.dos.pa.gov/search/business",
+    agentGoal: GOAL,
+  },
+  VA: {
+    state: "VA",
+    name: "Virginia",
+    searchUrl: "https://cis.scc.virginia.gov/EntitySearch/Index",
+    agentGoal: GOAL,
+  },
+  WA: {
+    state: "WA",
+    name: "Washington",
+    searchUrl: "https://ccfs.sos.wa.gov/",
     agentGoal: GOAL,
   },
 };

@@ -6,14 +6,15 @@ import type { WorkerStatus } from '@/lib/sos-adapters';
 /** Lifecycle of one browser tile: queued -> working -> a resolved WorkerStatus. */
 export type TileState = 'idle' | 'working' | WorkerStatus;
 
-interface StatusMeta {
+export interface StatusMeta {
   label: string;
   dot: string;
   ring: string;
   text: string;
 }
 
-const META: Record<TileState, StatusMeta> = {
+/** Shared status styling — reused by the grid tile and the focus modal. */
+export const STATUS_META: Record<TileState, StatusMeta> = {
   idle: { label: 'Queued', dot: 'bg-friday-text-tertiary', ring: 'ring-white/10', text: 'text-friday-text-tertiary' },
   working: { label: 'Working', dot: 'bg-friday-accent', ring: 'ring-friday-accent/60', text: 'text-friday-accent' },
   active: { label: 'Active', dot: 'bg-emerald-400', ring: 'ring-emerald-400/60', text: 'text-emerald-300' },
@@ -24,7 +25,7 @@ const META: Record<TileState, StatusMeta> = {
 
 const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'error'];
 
-function hostOf(url: string): string {
+export function hostOf(url: string): string {
   try {
     return new URL(url).host.replace(/^www\./, '');
   } catch {
@@ -38,12 +39,16 @@ interface GridTileProps {
   /** Portal entry URL — its host is shown in the chrome's address pill. */
   url: string;
   liveViewUrl: string;
+  /** Frozen final-page image once the session has been released. */
+  screenshotUrl?: string;
   status: TileState;
   ms?: number;
+  /** Click anywhere on the live view to focus this browser. */
+  onClick?: () => void;
 }
 
-export function GridTile({ stateCode, stateName, url, liveViewUrl, status, ms }: GridTileProps) {
-  const m = META[status];
+export function GridTile({ stateCode, stateName, url, liveViewUrl, screenshotUrl, status, ms, onClick }: GridTileProps) {
+  const m = STATUS_META[status];
   const working = status === 'working';
 
   return (
@@ -93,19 +98,42 @@ export function GridTile({ stateCode, stateName, url, liveViewUrl, status, ms }:
 
       {/* Live Browserbase view */}
       <div className="relative w-full bg-friday-bg" style={{ aspectRatio: '16 / 10' }}>
-        <iframe
-          src={liveViewUrl}
-          title={`${stateName} live view`}
-          className="absolute inset-0 w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin"
-        />
+        {screenshotUrl ? (
+          // Session released on completion — show the frozen final page, not a dead iframe.
+          <img
+            src={screenshotUrl}
+            alt={`${stateName} result`}
+            className="absolute inset-0 w-full h-full object-cover object-top"
+          />
+        ) : (
+          <iframe
+            src={liveViewUrl}
+            title={`${stateName} live view`}
+            className="absolute inset-0 w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        )}
         {/* Keep queued tiles calm until their worker fires */}
         {status === 'idle' && <div className="absolute inset-0 bg-friday-bg/50" />}
         {/* Timing badge once resolved */}
         {ms != null && RESOLVED.includes(status) && (
-          <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[10px] font-mono text-friday-text-secondary">
+          <div className="absolute bottom-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[10px] font-mono text-friday-text-secondary pointer-events-none">
             {(ms / 1000).toFixed(1)}s
           </div>
+        )}
+        {/* Click-to-focus overlay (grid iframes are previews, not interactive) */}
+        {onClick && (
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={`Focus ${stateName}`}
+            className="group absolute inset-0 z-30 cursor-pointer focus-ring"
+          >
+            <span className="absolute inset-0 bg-transparent transition-colors group-hover:bg-white/[0.05]" />
+            <span className="absolute top-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-friday-text-secondary opacity-0 transition-opacity group-hover:opacity-100">
+              expand ⛶
+            </span>
+          </button>
         )}
       </div>
     </motion.div>
