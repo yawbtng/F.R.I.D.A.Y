@@ -14,7 +14,8 @@ const ACTION_TIMEOUT_MS = 45_000; // SoS portals are slow; multi-step lookup.
  *  'active' because "inactive" contains "active". */
 export function mapStatus(data: unknown): { status: WorkerStatus; details?: Record<string, unknown> } {
   const d = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  const s = String(d.status ?? d.standing ?? "").toLowerCase();
+  // Stagehand with no schema returns { extraction: "..." }; with a status field, read that.
+  const s = String(d.status ?? d.standing ?? d.extraction ?? (typeof data === "string" ? data : "")).toLowerCase();
   if (/inactive|expired|dissolved|revoked|forfeit|cancel|terminat|delinquent/.test(s)) {
     return { status: "inactive", details: d };
   }
@@ -47,6 +48,14 @@ export function makeStateWorker(adapters: Record<string, StateAdapter>): Worker 
     await agentFetch({
       path: "/api/browser/act",
       body: { instruction: adapter.searchInstruction.replaceAll("{entity}", input.entityName) },
+      ctx,
+      timeoutMs: ACTION_TIMEOUT_MS,
+    });
+
+    // Submit as a separate atomic action — Stagehand acts should be single-step.
+    await agentFetch({
+      path: "/api/browser/act",
+      body: { instruction: adapter.submitInstruction ?? "Submit the search by clicking the search button." },
       ctx,
       timeoutMs: ACTION_TIMEOUT_MS,
     });
