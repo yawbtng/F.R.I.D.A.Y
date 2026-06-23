@@ -12,51 +12,56 @@ const adapters: Record<string, StateAdapter> = {
     state: 'DE',
     name: 'Delaware',
     searchUrl: 'https://de.example/search',
-    searchInstruction: 'Type "{entity}" and search.',
-    extractInstruction: 'extract status',
+    agentGoal: 'Open the record for "{entity}".',
   },
 };
 const ctx = { sessionId: 's', token: 't' };
 const ok = (json: unknown) => Promise.resolve({ ok: true, json: async () => json });
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string) as Record<string, unknown>;
 
+// Route the mock by URL: agent -> opened record; extract -> a one-word status.
+function wire(extraction: string) {
+  mockFetch.mockImplementation((url: string) => {
+    if (url.includes('/api/browser/agent')) return ok({ data: { message: 'opened the record', completed: true } });
+    if (url.includes('/api/browser/extract')) return ok({ data: { extraction } });
+    return ok({ ok: true });
+  });
+}
+
 describe('mapStatus', () => {
   it('classifies active / inactive / notfound (inactive wins over substring "active")', () => {
-    expect(mapStatus({ status: 'Active' }).status).toBe('active');
-    expect(mapStatus({ status: 'Good Standing' }).status).toBe('active');
-    expect(mapStatus({ status: 'Inactive' }).status).toBe('inactive');
-    expect(mapStatus({ status: 'Expired' }).status).toBe('inactive');
-    expect(mapStatus({ status: 'Dissolved' }).status).toBe('inactive');
-    expect(mapStatus({ status: '' }).status).toBe('notfound');
+    expect(mapStatus({ extraction: 'active' }).status).toBe('active');
+    expect(mapStatus({ extraction: 'Good Standing' }).status).toBe('active');
+    expect(mapStatus({ extraction: 'inactive' }).status).toBe('inactive');
+    expect(mapStatus({ extraction: 'Expired' }).status).toBe('inactive');
+    expect(mapStatus({ extraction: 'notfound' }).status).toBe('notfound');
+    expect(mapStatus({ extraction: '' }).status).toBe('notfound');
     expect(mapStatus(null).status).toBe('notfound');
   });
 });
 
-describe('makeStateWorker', () => {
+describe('makeStateWorker (agent navigate + structured extract)', () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.restoreAllMocks());
 
-  it('navigates to the adapter URL, searches with the entity interpolated, and maps active', async () => {
-    mockFetch.mockImplementation((url: string) =>
-      url.includes('/extract') ? ok({ data: { status: 'Active', entityName: 'Acme Corp' } }) : ok({ ok: true }),
-    );
-
+  it('runs the agent (startUrl + entity goal) then extracts the status', async () => {
+    wire('active');
     const res = await makeStateWorker(adapters)({ state: 'DE', entityName: 'Acme Corp' }, ctx);
 
     expect(res).toMatchObject({ state: 'DE', status: 'active' });
     expect(typeof res.ms).toBe('number');
 
-    const calls = mockFetch.mock.calls;
-    const nav = calls.find((c) => String(c[0]).includes('/navigate'))!;
-    const act = calls.find((c) => String(c[0]).includes('/act'))!;
-    expect(bodyOf(nav).url).toBe('https://de.example/search');
-    expect(bodyOf(act).instruction).toContain('Acme Corp');
+    const agentCall = mockFetch.mock.calls.find((c) => String(c[0]).includes('/api/browser/agent'))!;
+    expect(agentCall, 'agent route should be called').toBeTruthy();
+    const ab = bodyOf(agentCall);
+    expect(ab.startUrl).toBe('https://de.example/search');
+    expect(ab.instruction).toContain('Acme Corp');
+
+    expect(mockFetch.mock.calls.some((c) => String(c[0]).includes('/api/browser/extract'))).toBe(true);
   });
 
-  it('maps an expired entity to inactive', async () => {
-    mockFetch.mockImplementation((url: string) =>
-      url.includes('/extract') ? ok({ data: { status: 'Expired' } }) : ok({ ok: true }),
-    );
+  it('maps an expired extract to inactive', async () => {
+    wire('expired');
     const res = await makeStateWorker(adapters)({ state: 'DE', entityName: 'X' }, ctx);
     expect(res.status).toBe('inactive');
   });
@@ -67,12 +72,12 @@ describe('makeStateWorker', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('propagates a failed action so the orchestrator can mark it error', async () => {
+  it('propagates a failed agent run so the orchestrator can mark it error', async () => {
     mockFetch.mockImplementation((url: string) =>
-      url.includes('/extract')
-        ? Promise.resolve({ ok: false, status: 500, json: async () => ({ error: 'board down' }) })
+      url.includes('/api/browser/agent')
+        ? Promise.resolve({ ok: false, status: 500, json: async () => ({ error: 'agent crashed' }) })
         : ok({ ok: true }),
     );
-    await expect(makeStateWorker(adapters)({ state: 'DE', entityName: 'X' }, ctx)).rejects.toThrow('board down');
+    await expect(makeStateWorker(adapters)({ state: 'DE', entityName: 'X' }, ctx)).rejects.toThrow('agent crashed');
   });
 });

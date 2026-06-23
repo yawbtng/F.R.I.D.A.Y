@@ -54,7 +54,7 @@ async function main() {
   // 3. Report.
   console.log(`\n[swarm] ${result.succeeded} of ${result.total} verified in ${elapsed}s (${result.failed} failed)`);
   for (const r of result.results) {
-    console.log(`  ${r.state.padEnd(3)} ${r.status.padEnd(9)} ${r.ms}ms  ${r.raw.slice(0, 90)}`);
+    console.log(`  ${r.state.padEnd(3)} ${r.status.padEnd(9)} ${r.ms}ms  ${r.raw.slice(0, 400)}`);
   }
 
   // 4. Clean up.

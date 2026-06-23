@@ -1,21 +1,32 @@
-// The live worker: drives ONE browser through a state's SoS portal and returns a
-// WorkerResult. navigate -> act (search) -> extract (status), all via agentFetch on
-// the per-worker AgentContext. A thrown agentFetch (timeout/HTTP error) propagates so
-// the orchestrator records it as status 'error' (graceful partial-failure).
+// The live worker for one browser / one state. Two phases:
+//   1) Stagehand AGENT navigates the portal — search + open the best-matching record
+//      (robust to ASP.NET / SPA / terms gates / name-format differences).
+//   2) Structured EXTRACT reads the status off the landed page as one clean word.
+// Splitting them avoids parsing the agent's chatty prose (which false-matches phrases
+// like "active or inactive"). A thrown agentFetch propagates → orchestrator marks 'error'.
 
 import { agentFetch } from "../lib/agent-fetch.js";
 import type { AgentContext } from "../lib/agent-fetch.js";
 import type { Worker, WorkerInput, WorkerResult, WorkerStatus } from "./types.js";
 import type { StateAdapter } from "./states.js";
 
-const ACTION_TIMEOUT_MS = 45_000; // SoS portals are slow; multi-step lookup.
+const AGENT_TIMEOUT_MS = 120_000; // an autonomous multi-step agent run is slow.
+const EXTRACT_TIMEOUT_MS = 45_000;
+const MAX_STEPS = 14;
 
-/** Map whatever the LLM extracted into a normalized status. Check 'inactive' before
- *  'active' because "inactive" contains "active". */
+const STATUS_EXTRACT =
+  "Extract the registration or standing status of the business entity shown on this page. " +
+  "Reply with EXACTLY one word and nothing else: active, inactive, or notfound. " +
+  "Use 'inactive' for expired/dissolved/revoked/forfeited entities, and 'notfound' if the page " +
+  "shows no entity record (e.g. it is still a search/results page with no match).";
+
+/** Normalize an extracted value into a status. Check 'inactive' before 'active'
+ *  because "inactive" contains "active". */
 export function mapStatus(data: unknown): { status: WorkerStatus; details?: Record<string, unknown> } {
   const d = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  // Stagehand with no schema returns { extraction: "..." }; with a status field, read that.
-  const s = String(d.status ?? d.standing ?? d.extraction ?? (typeof data === "string" ? data : "")).toLowerCase();
+  const s = String(
+    d.status ?? d.standing ?? d.extraction ?? d.message ?? (typeof data === "string" ? data : ""),
+  ).toLowerCase();
   if (/inactive|expired|dissolved|revoked|forfeit|cancel|terminat|delinquent/.test(s)) {
     return { status: "inactive", details: d };
   }
@@ -38,41 +49,32 @@ export function makeStateWorker(adapters: Record<string, StateAdapter>): Worker 
       };
     }
 
-    await agentFetch({
-      path: "/api/browser/navigate",
-      body: { url: adapter.searchUrl },
+    // 1) Agent navigates + searches + opens the best-matching record page.
+    const ag = await agentFetch<{ data: { message?: string } }>({
+      path: "/api/browser/agent",
+      body: {
+        startUrl: adapter.searchUrl,
+        instruction: adapter.agentGoal.replaceAll("{entity}", input.entityName),
+        maxSteps: MAX_STEPS,
+      },
       ctx,
-      timeoutMs: ACTION_TIMEOUT_MS,
+      timeoutMs: AGENT_TIMEOUT_MS,
     });
 
-    await agentFetch({
-      path: "/api/browser/act",
-      body: { instruction: adapter.searchInstruction.replaceAll("{entity}", input.entityName) },
-      ctx,
-      timeoutMs: ACTION_TIMEOUT_MS,
-    });
-
-    // Submit as a separate atomic action — Stagehand acts should be single-step.
-    await agentFetch({
-      path: "/api/browser/act",
-      body: { instruction: adapter.submitInstruction ?? "Submit the search by clicking the search button." },
-      ctx,
-      timeoutMs: ACTION_TIMEOUT_MS,
-    });
-
+    // 2) Structured read of the status from the page the agent landed on.
     const ex = await agentFetch<{ data: unknown }>({
       path: "/api/browser/extract",
-      body: { instruction: adapter.extractInstruction },
+      body: { instruction: STATUS_EXTRACT },
       ctx,
-      timeoutMs: ACTION_TIMEOUT_MS,
+      timeoutMs: EXTRACT_TIMEOUT_MS,
     });
 
-    const { status, details } = mapStatus(ex.data);
+    const { status } = mapStatus(ex.data);
+    const exStr = typeof ex.data === "string" ? ex.data : JSON.stringify(ex.data);
     return {
       state: input.state,
       status,
-      details,
-      raw: typeof ex.data === "string" ? ex.data : JSON.stringify(ex.data),
+      raw: `agent: ${(ag.data?.message ?? "").slice(0, 120)} | extract: ${exStr}`,
       ms: Date.now() - start,
     };
   };
