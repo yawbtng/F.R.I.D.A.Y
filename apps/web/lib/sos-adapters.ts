@@ -9,7 +9,7 @@
 // READ-ONLY lookups only (no write actions on government portals). Avoid pay-to-view
 // portals like Delaware, which paywalls entity status.
 
-export type WorkerStatus = "active" | "inactive" | "notfound" | "error";
+export type WorkerStatus = "active" | "inactive" | "notfound" | "blocked" | "error";
 
 export interface StateAdapter {
   /** 2-letter code, e.g. "CA". */
@@ -40,10 +40,13 @@ const GOAL =
 // One-word status read off the landed page. Kept separate from the agent's chatty prose
 // so we don't false-match phrases like "active or inactive".
 export const STATUS_EXTRACT =
-  "Extract the registration or standing status of the business entity shown on this page. " +
-  "Reply with EXACTLY one word and nothing else: active, inactive, or notfound. " +
-  "Use 'inactive' for expired/dissolved/revoked/forfeited entities, and 'notfound' if the page " +
-  "shows no entity record (e.g. it is still a search/results page with no match).";
+  "Look at this page and report the registration status of the business entity. " +
+  "Reply with EXACTLY one word and nothing else: active, inactive, notfound, or blocked. " +
+  "active = the record shows active / good standing / current. " +
+  "inactive = the record shows dissolved / revoked / expired / forfeited / inactive. " +
+  "notfound = the page shows no matching entity record (e.g. an empty search/results page). " +
+  "blocked = the page is a CAPTCHA, 'are you human', security/robot check, access-denied, or " +
+  "'this site can't be reached' page, so the record could not be reached.";
 
 // Status-public, free portals only (status shown on the public record, no login/payment).
 // Curated from research + live verification; pay-to-view (DE, NJ), status-not-free (TX),
@@ -186,6 +189,10 @@ export function mapStatus(data: unknown): WorkerStatus {
   const s = String(
     d.status ?? d.standing ?? d.extraction ?? d.message ?? (typeof data === "string" ? data : ""),
   ).toLowerCase();
+  // Blocked = the portal stopped us (CAPTCHA / anti-bot / unreachable), NOT "no record".
+  if (/blocked|captcha|are you human|security check|robot|verify you are|access denied|forbidden|can.?t be reached|unreachable/.test(s)) {
+    return "blocked";
+  }
   if (/inactive|expired|dissolved|revoked|forfeit|cancel|terminat|delinquent/.test(s)) {
     return "inactive";
   }

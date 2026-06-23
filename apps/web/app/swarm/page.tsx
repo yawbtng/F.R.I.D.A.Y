@@ -32,10 +32,12 @@ type Phase = 'config' | 'spawning' | 'running' | 'done';
 async function verifyState(b: SpawnedBrowser, state: string, entity: string): Promise<WorkerStatus> {
   const adapter = STATE_ADAPTERS[state];
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${b.token}` };
+  const signal = AbortSignal.timeout(95_000); // don't let a stuck portal spin forever
 
   const agentRes = await fetch('/api/browser/agent', {
     method: 'POST',
     headers,
+    signal,
     body: JSON.stringify({
       sessionId: b.sessionId,
       startUrl: adapter.searchUrl,
@@ -50,6 +52,7 @@ async function verifyState(b: SpawnedBrowser, state: string, entity: string): Pr
   const exRes = await fetch('/api/browser/extract', {
     method: 'POST',
     headers,
+    signal,
     body: JSON.stringify({ sessionId: b.sessionId, instruction: STATUS_EXTRACT }),
   });
   if (!exRes.ok) {

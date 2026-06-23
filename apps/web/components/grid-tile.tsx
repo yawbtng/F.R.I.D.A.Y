@@ -20,10 +20,11 @@ export const STATUS_META: Record<TileState, StatusMeta> = {
   active: { label: 'Active', dot: 'bg-emerald-400', ring: 'ring-emerald-400/60', text: 'text-emerald-300' },
   inactive: { label: 'Inactive', dot: 'bg-red-400', ring: 'ring-red-400/60', text: 'text-red-300' },
   notfound: { label: 'Not found', dot: 'bg-amber-400', ring: 'ring-amber-400/50', text: 'text-amber-300' },
+  blocked: { label: 'Blocked', dot: 'bg-orange-400', ring: 'ring-orange-400/50', text: 'text-orange-300' },
   error: { label: 'Error', dot: 'bg-red-500', ring: 'ring-red-500/60', text: 'text-red-400' },
 };
 
-const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'error'];
+const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'blocked', 'error'];
 
 export function hostOf(url: string): string {
   try {
