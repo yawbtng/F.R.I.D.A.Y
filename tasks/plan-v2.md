@@ -80,6 +80,16 @@
       header. **Client-driven** (no backend orchestrator) so it deploys to Vercel unchanged; web-owned
       adapter copy in `apps/web/lib/sos-adapters.ts`. Per-IP rate ceiling raised on fan-out routes.
       ⏭ click-to-expand WebPreview view (Phase 2 polish); verify the grid visually + at scale.
+- [x] **Focus modal + auto-close** (2026-06-23): click any tile → live/frozen `BrowserModal`; on each
+      worker completing, capture a final screenshot, freeze the tile to it, then release that session.
+- [x] **Session-release bug fixed (CRITICAL):** keepAlive sessions survive `stagehand.close()`, so DELETE
+      was leaking RUNNING (billing) sessions — 13 found alive, which also tripped the 25-cap → spawn 429.
+      `releaseBrowserSession()` (REQUEST_RELEASE) on DELETE + idle cleanup. Verified 0 RUNNING after a
+      20-state run. See [[stagehand_keepalive_release]].
+- [x] **Reliability + portals:** sharpened agent goal (accept terms gates, wait for results, best active
+      match) + `maxSteps` 14→25; registry expanded to **20 status-public states**. Baseline (Walmart Inc.):
+      **13/20 definitive** (CA FL NY CO NC PA WA MA MN OR TN AZ active; GA flagged wrong-match). Flaky:
+      IL MI OH VA CT UT NV. ⏭ retry-on-notfound and/or search-discovery (Exa) to lift the tail.
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
 - [ ] **Measure latency** on ~10 states; set the narration number from reality.
 - [ ] **Verify (GATE):** one text command → ~20 browsers fan out → grid lights up → synthesized
