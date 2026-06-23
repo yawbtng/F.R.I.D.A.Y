@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { STATUS_META, hostOf } from './grid-tile';
+import { SessionReplay } from './session-replay';
 import type { Tile } from './swarm-grid';
 
 /** Full-attention view of one browser. Live iframe while the session is open;
@@ -15,6 +16,7 @@ export function BrowserModal({ tile, onClose }: { tile: Tile; onClose: () => voi
   }, [onClose]);
 
   const m = STATUS_META[tile.status];
+  const resolved = tile.status !== 'idle' && tile.status !== 'working';
 
   return (
     <motion.div
@@ -66,14 +68,10 @@ export function BrowserModal({ tile, onClose }: { tile: Tile; onClose: () => voi
           </button>
         </div>
 
-        {/* View */}
+        {/* View: scrubable replay once the run is done; live session while it's still working */}
         <div className="relative w-full bg-friday-bg" style={{ aspectRatio: '16 / 10' }}>
-          {tile.screenshotUrl ? (
-            <img
-              src={tile.screenshotUrl}
-              alt={`${tile.name} result`}
-              className="absolute inset-0 w-full h-full object-contain"
-            />
+          {resolved ? (
+            <SessionReplay sessionId={tile.sessionId} token={tile.token} poster={tile.screenshotUrl} />
           ) : (
             <iframe
               src={tile.liveViewUrl}
