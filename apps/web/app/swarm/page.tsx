@@ -18,6 +18,7 @@ import {
 } from '@/lib/sos-adapters';
 import { SwarmGrid, type Tile, type TileState } from '@/components/swarm-grid';
 import { BrowserModal } from '@/components/browser-modal';
+import { ArtifactModal } from '@/components/artifact-modal';
 
 interface SpawnedBrowser {
   browserId: string;
@@ -100,6 +101,9 @@ export default function SwarmPage() {
   const [startTs, setStartTs] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [focusedState, setFocusedState] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryText, setSummaryText] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const fleetRef = useRef<SpawnedBrowser[]>([]);
 
   // Release the fleet if the user navigates away mid-run.
@@ -187,6 +191,28 @@ export default function SwarmPage() {
     setError('');
   }, []);
 
+  const generateSummary = useCallback(async () => {
+    setSummaryOpen(true);
+    setSummaryLoading(true);
+    setSummaryText('');
+    try {
+      const res = await fetch('/api/swarm/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entity: entity.trim(),
+          results: tiles.map((t) => ({ state: t.state, name: t.name, status: t.status, ms: t.ms })),
+        }),
+      });
+      const data = await res.json();
+      setSummaryText(res.ok ? data.summary : data.error || 'Failed to generate report.');
+    } catch {
+      setSummaryText('Failed to generate report.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [entity, tiles]);
+
   const verified = tiles.filter((t) => t.status === 'active' || t.status === 'inactive' || t.status === 'notfound').length;
   const errored = tiles.filter((t) => t.status === 'error').length;
   const running = phase === 'running' || phase === 'spawning';
@@ -217,6 +243,14 @@ export default function SwarmPage() {
                   {elapsed.toFixed(1)}s{errored > 0 ? ` · ${errored} error` : ''}
                 </div>
               </div>
+              {phase === 'done' && (
+                <button
+                  onClick={generateSummary}
+                  className="rounded-md px-3 py-1.5 text-xs font-semibold text-friday-accent bg-friday-accent/15 ring-1 ring-friday-accent/40 hover:bg-friday-accent/25 focus-ring"
+                >
+                  ✦ Report
+                </button>
+              )}
               <button
                 onClick={reset}
                 disabled={running}
@@ -296,6 +330,17 @@ export default function SwarmPage() {
 
       <AnimatePresence>
         {focusedTile && <BrowserModal tile={focusedTile} onClose={() => setFocusedState(null)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {summaryOpen && (
+          <ArtifactModal
+            entity={entity}
+            summary={summaryText}
+            loading={summaryLoading}
+            onClose={() => setSummaryOpen(false)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
