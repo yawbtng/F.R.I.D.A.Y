@@ -23,11 +23,9 @@ export async function getStagehand(sessionId: string): Promise<Stagehand> {
     apiKey: process.env.BROWSERBASE_API_KEY!,
     projectId: process.env.BROWSERBASE_PROJECT_ID!,
     keepAlive: true,
-    model: {
-      modelName: "xai/grok-4.1-fast",
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: process.env.OPENROUTER_API_KEY!,
-    },
+    // Route through Browserbase's Model Gateway: a plain provider/model slug billed via
+    // the Browserbase API key (the top-level apiKey above). No provider key or baseURL.
+    model: process.env.STAGEHAND_MODEL || "openai/gpt-4.1-mini",
   });
   await stagehand.init();
 

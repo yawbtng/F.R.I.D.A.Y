@@ -46,3 +46,12 @@ export const FleetSpawnSchema = z.object({
 export const FleetCloseSchema = z.object({
   sessionId: z.string().min(1),
 });
+
+// Autonomous agent run on a session (Stagehand agent.execute). Optionally navigate
+// to startUrl first, then run the agent toward `instruction`.
+export const AgentSchema = z.object({
+  sessionId: z.string().min(1),
+  instruction: z.string().min(1, "Instruction cannot be empty"),
+  startUrl: z.string().url("startUrl must be a valid URL").optional(),
+  maxSteps: z.number().int().min(1).max(50).optional(),
+});

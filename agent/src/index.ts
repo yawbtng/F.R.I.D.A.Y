@@ -13,7 +13,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // OpenRouter LLM via OpenAI-compatible API
 const openRouterLLM = new inference.LLM({
-  model: 'xai/grok-4.1-fast',
+  model: process.env.OPENROUTER_MODEL || 'x-ai/grok-4.20',
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY || '',
 });

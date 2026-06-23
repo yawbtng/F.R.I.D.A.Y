@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "^3",
+    "@browserbasehq/stagehand": "^3.6.0",
     "@livekit/components-react": "^2.9.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

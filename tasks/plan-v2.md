@@ -58,9 +58,11 @@
       (LiveKit/Convex) still needs a 3-process manual smoke — deferred to Phase 3 (voice is garnish).
 
 ## Phase 1 — The Swarm (headline, text-driven) — THE Browserbase moment
-- [ ] **PRE-TASK (do first): build `states.json` adapter registry** for a committed curated subset of
-      8-12 genuinely-distinct, stable, no-CAPTCHA SoS portals (e.g. CA, TX, NY, DE, FL, WA, CO, IL...).
-      Each adapter: `{ state, searchUrl, inputFields, resultSelectors|extractPrompt, antiBotFlag }`.
+- [x] **`states.json` adapters + live worker (DE/CA/NY) built.** Config-first adapters (searchUrl +
+      NL search/extract instructions); `makeStateWorker` drives navigate→act→extract via agentFetch;
+      `mapStatus` normalizes to active/inactive/notfound. Model routed via **Browserbase Model Gateway**
+      (Stagehand 3.6.0, plain `openai/gpt-4.1-mini` slug + BB key — old xai/grok+OpenRouter never worked
+      for extract). ⏭ expand to 8-12 states. **BLOCKED: gateway plan usage (billing, not code).**
 - [x] **Kill the singleton (Lane A foundation, done):** `agent-fetch.ts` is now stateless per-worker
       (`AgentContext {sessionId, token, signal?}`, own AbortController, 30s timeout); `_browserSessionId`
       → per-process voice context. 47 tests green incl. concurrent-fetch regression. ⏭ Browser
@@ -148,3 +150,40 @@
 **UNRESOLVED:** 0
 **VERDICT:** CEO + ENG CLEARED — architecture locked, ready to implement (Phase 0 → Phase 1).
 The HUD is real UI scope — consider /plan-design-review before building the grid.
+
+
+## Target UX flow (voice agent — the full agentic loop; user vision 2026-06-23)
+End-state product. Expands Phase 3 from "voice triggers fleet" into a collaborative loop:
+1. **User speaks the task** — LiveKit / gpt-realtime.
+2. **Agent researches & plans** — LLM (+ Browserbase Search/Exa for open-ended tasks) → a structured
+   plan object `{ task, targets[], perTargetAction, expectedOutput }`. Dispatch-level planning decides
+   *scope* (= how many browsers); execution stays the deterministic fan-out.
+3. **Speaks back + shows plan in UI** — `generateReply` narrates; a Convex-backed plan panel renders it.
+4. **User accepts or edits** (voice or text) — confirmation gate; "add Texas, drop Hawaii" patches the
+   plan. This is the cost/safety valve — nothing spawns until approved.
+5. **Live updates as it runs** — workers write per-step status → Convex → UI subscribes + voice narrates
+   milestones. (Orchestrator must STREAM progress, not just return at the end.)
+6. **User watches the swarm** — mission-control grid (live-view tiles).
+7. **Agent returns an artifact** — synthesize `SwarmResult` → report (findings / per-target status /
+   blockers) + shareable link. The deliverable.
+
+Rule: **plan at the dispatch layer, execute deterministically.** Convex is the spine for plan state (3),
+live progress (5), and the artifact (7). Pull the plan-object + Convex progress streaming earlier (the
+grid/clip use them too).
+
+## Concurrency / scale — HARD CAP 25 (this plan)
+- Browserbase plan = **25 concurrent sessions max** (not 50). `FleetSpawnSchema` already caps at 25.
+- A 50-state task runs in **waves of ≤25** (orchestrator concurrency cap queues the rest). Hero clip ≈
+  20 simultaneous browsers (within cap). Grid may show up to 50 tiles with ≤25 live at once.
+- LLM throughput is now the **Model Gateway** (server-side on Browserbase), so OUR OpenRouter rate limit
+  is no longer the bottleneck — set orchestrator concurrency ~20-25 for the demo visual (was ~5-8 when we
+  used our own key). Browserbase meters gateway usage; the 25-session cap is the real bound.
+
+## Next iteration (2026-06-23) — make a worker actually read a portal (THE long pole)
+Live swarm is proven end-to-end (Model Gateway, X-of-N, parallel); the gap is the per-portal search.
+1. **DIAGNOSE**: after submit, capture screenshot + full-page text on DE/CA to see why `notfound`
+   (terms gate / anti-bot / SPA results not loaded / wrong field). Can't guess gov-portal quirks.
+2. **FIX (pref order)**: per-worker Stagehand `agent` (autonomous, robust; needs `/api/browser/agent`)
+   → per-portal act tuning (waits/observe) → curate easiest portals (some allow URL-query search).
+3. Get ONE portal fully green (real active/inactive/notfound for known entities), then replicate to 8-12.
+Then: grid HUD → record hero clip → shareable proof → voice agentic loop (above) → deploy.
