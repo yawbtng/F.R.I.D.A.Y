@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     const agent = stagehand.agent({ model: process.env.STAGEHAND_MODEL || "openai/gpt-4.1-mini" });
     const result = await agent.execute({
       instruction: parsed.data.instruction,
-      maxSteps: parsed.data.maxSteps ?? 14,
+      maxSteps: parsed.data.maxSteps ?? 25,
     });
 
     return Response.json({

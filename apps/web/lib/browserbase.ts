@@ -42,3 +42,23 @@ export async function createBrowserSession(): Promise<CreatedSession> {
 
   return { sessionId, liveViewUrl: debuggerFullscreenUrl, token };
 }
+
+/**
+ * End a session on Browserbase. `stagehand.close()` alone does NOT stop a keepAlive
+ * session — it disconnects the handle but the cloud session keeps RUNNING (and billing)
+ * until the platform idle-timeout. REQUEST_RELEASE ends it immediately. Call this whenever
+ * a swarm worker finishes so concurrency frees up and minutes aren't wasted.
+ */
+export async function releaseBrowserSession(sessionId: string): Promise<void> {
+  await fetch(`https://api.browserbase.com/v1/sessions/${sessionId}`, {
+    method: "POST",
+    headers: {
+      "x-bb-api-key": process.env.BROWSERBASE_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      projectId: process.env.BROWSERBASE_PROJECT_ID!,
+      status: "REQUEST_RELEASE",
+    }),
+  });
+}

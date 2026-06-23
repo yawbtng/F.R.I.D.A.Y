@@ -38,7 +38,7 @@ async function verify(b: Spawned, state: string, entity: string) {
       sessionId: b.sessionId,
       startUrl: adapter.searchUrl,
       instruction: goalFor(adapter, entity),
-      maxSteps: 14,
+      maxSteps: 25,
     }),
   });
   if (!ag.ok) throw new Error(`agent ${ag.status}: ${(await ag.text()).slice(0, 140)}`);

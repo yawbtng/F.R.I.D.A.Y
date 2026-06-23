@@ -25,12 +25,17 @@ export interface StateAdapter {
 // One shared goal: search the entity, open the best-matching record (tolerant of
 // capitalization / punctuation / suffix differences), land on its detail page.
 const GOAL =
-  'Search for the business entity named "{entity}" on this Secretary of State site. The record often ' +
-  'differs in capitalization, punctuation, or suffix (e.g. "TESLA, INC.", "TESLA INC", ' +
-  '"Tesla Incorporated"), so from the results open the detail/record page of the entry that best ' +
-  'matches "{entity}" even if it is not an exact string match — do not require an exact match. ' +
-  "Your goal is to navigate to and open that entity's detail page, where its registration status is " +
-  "shown. If no plausible match exists at all, stop on the results page.";
+  'You are on a U.S. state Secretary of State business-entity search site. Goal: find the ' +
+  'registration status of the business entity named "{entity}". ' +
+  '(1) If a terms-of-use, disclaimer, or "I accept / I agree" gate appears first, accept it to continue. ' +
+  '(2) Locate the business/entity NAME search field, type "{entity}", and submit the search. ' +
+  '(3) Wait for the results to finish loading. The matching record often differs in capitalization, ' +
+  'punctuation, or suffix (e.g. "APPLE INC.", "Apple Inc", "Apple Incorporated"), so choose the result ' +
+  'that best matches "{entity}" even if it is not an exact string match; prefer an active corporation ' +
+  'or LLC over reserved names, trade names, or unrelated look-alikes. ' +
+  "(4) Open that result's detail/record page, where the registration status is displayed. " +
+  'Do NOT stop on the results list if a plausible match exists — open it. Only stop if a CAPTCHA or ' +
+  'login blocks access, or if no plausible match exists at all.';
 
 // One-word status read off the landed page. Kept separate from the agent's chatty prose
 // so we don't false-match phrases like "active or inactive".
@@ -115,6 +120,54 @@ export const STATE_ADAPTERS: Record<string, StateAdapter> = {
     state: "WA",
     name: "Washington",
     searchUrl: "https://ccfs.sos.wa.gov/",
+    agentGoal: GOAL,
+  },
+  CT: {
+    state: "CT",
+    name: "Connecticut",
+    searchUrl: "https://service.ct.gov/business/s/onlinebusinesssearch",
+    agentGoal: GOAL,
+  },
+  MA: {
+    state: "MA",
+    name: "Massachusetts",
+    searchUrl: "https://corp.sec.state.ma.us/corpweb/CorpSearch/CorpSearch.aspx",
+    agentGoal: GOAL,
+  },
+  MN: {
+    state: "MN",
+    name: "Minnesota",
+    searchUrl: "https://mblsportal.sos.mn.gov/Business/Search",
+    agentGoal: GOAL,
+  },
+  OR: {
+    state: "OR",
+    name: "Oregon",
+    searchUrl: "https://sos.oregon.gov/business/Pages/find.aspx",
+    agentGoal: GOAL,
+  },
+  TN: {
+    state: "TN",
+    name: "Tennessee",
+    searchUrl: "https://tncab.tnsos.gov/business-entity-search",
+    agentGoal: GOAL,
+  },
+  UT: {
+    state: "UT",
+    name: "Utah",
+    searchUrl: "https://businessregistration.utah.gov/",
+    agentGoal: GOAL,
+  },
+  NV: {
+    state: "NV",
+    name: "Nevada",
+    searchUrl: "https://esos.nv.gov/EntitySearch/BusinessInformation",
+    agentGoal: GOAL,
+  },
+  AZ: {
+    state: "AZ",
+    name: "Arizona",
+    searchUrl: "https://ecorp.azcc.gov/EntitySearch/Index",
     agentGoal: GOAL,
   },
 };

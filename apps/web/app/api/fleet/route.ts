@@ -9,7 +9,7 @@
 import { NextRequest } from "next/server";
 import { FleetSpawnSchema, FleetCloseSchema } from "@/lib/schemas";
 import { rateLimit } from "@/lib/rate-limit";
-import { createBrowserSession } from "@/lib/browserbase";
+import { createBrowserSession, releaseBrowserSession } from "@/lib/browserbase";
 import { removeSession } from "@/lib/stagehand";
 
 export const maxDuration = 60;
@@ -68,6 +68,7 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  removeSession(parsed.data.sessionId);
+  removeSession(parsed.data.sessionId); // drop the local handle
+  await releaseBrowserSession(parsed.data.sessionId).catch(() => {}); // actually end the cloud session
   return Response.json({ closed: parsed.data.sessionId });
 }

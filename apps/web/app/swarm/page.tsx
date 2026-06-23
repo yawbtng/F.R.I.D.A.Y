@@ -40,7 +40,7 @@ async function verifyState(b: SpawnedBrowser, state: string, entity: string): Pr
       sessionId: b.sessionId,
       startUrl: adapter.searchUrl,
       instruction: goalFor(adapter, entity),
-      maxSteps: 14,
+      maxSteps: 25,
     }),
   });
   if (!agentRes.ok) {
