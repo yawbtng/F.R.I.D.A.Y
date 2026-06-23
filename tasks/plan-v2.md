@@ -93,6 +93,10 @@
       report `blocked` honestly AND fast (NV 115s→11s) instead of a misleading `notfound`. Net 20-grid:
       ~13 verified + 3 blocked + 4 flaky (MI VA CT UT). ⏭ retry-on-notfound for the flaky 4;
       search-discovery (Exa) for true autonomy; Browserbase session **replay** in the focus modal.
+- [x] **Session replay** (Phase-2 artifact, pulled early): click a completed tile → Browserbase HLS
+      replay via hls.js (rrweb /recording is deprecated; proxy /replays .m3u8). Screenshot = poster.
+- [x] **AI verification report** (Phase-3 artifact, pulled early): end-of-run "✦ Report" → Vercel AI SDK
+      → OpenRouter synthesizes a KYB findings summary; counts pre-computed server-side. Verified live.
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
 - [ ] **Measure latency** on ~10 states; set the narration number from reality.
 - [ ] **Verify (GATE):** one text command → ~20 browsers fan out → grid lights up → synthesized
