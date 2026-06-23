@@ -1,13 +1,19 @@
-// Shared module-scoped state for agent tools.
-// browserSessionId must be set before any tool is invoked.
+// Per-process voice session context.
+//
+// The voice agent drives exactly ONE browser, so a single holder is correct here.
+// Swarm workers do NOT use this — the orchestrator builds an explicit AgentContext
+// per browser and passes it to agentFetch (see lib/agent-fetch.ts). Keeping the two
+// paths separate is what lets N workers run in parallel without cancelling each other.
 
-let _browserSessionId = '';
+import type { AgentContext } from '../lib/agent-fetch.js';
 
-export function setBrowserSessionId(id: string): void {
-  _browserSessionId = id;
+let _voiceContext: AgentContext | null = null;
+
+export function setVoiceContext(ctx: AgentContext): void {
+  _voiceContext = ctx;
 }
 
-export function getBrowserSessionId(): string {
-  if (!_browserSessionId) throw new Error('Browser session ID not set');
-  return _browserSessionId;
+export function getVoiceContext(): AgentContext {
+  if (!_voiceContext) throw new Error('Voice session context not set');
+  return _voiceContext;
 }

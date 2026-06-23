@@ -3,7 +3,7 @@
 import { llm } from '@livekit/agents';
 import { z } from 'zod';
 import { agentFetch } from '../lib/agent-fetch.js';
-import { getBrowserSessionId } from './shared.js';
+import { getVoiceContext } from './shared.js';
 
 interface NavigateResult {
   currentUrl: string;
@@ -22,7 +22,7 @@ export const navigate = llm.tool({
     const result = await agentFetch<NavigateResult>({
       path: '/api/browser/navigate',
       body: { url },
-      sessionId: getBrowserSessionId(),
+      ctx: getVoiceContext(),
     });
 
     return `Navigated to ${result.currentUrl}. Page title: ${result.title}.`;

@@ -3,7 +3,7 @@
 import { llm } from '@livekit/agents';
 import { z } from 'zod';
 import { agentFetch } from '../lib/agent-fetch.js';
-import { getBrowserSessionId } from './shared.js';
+import { getVoiceContext } from './shared.js';
 
 interface ObserveAction {
   description: string;
@@ -31,7 +31,7 @@ export const observe = llm.tool({
     const result = await agentFetch<ObserveResult>({
       path: '/api/browser/observe',
       body: { instruction },
-      sessionId: getBrowserSessionId(),
+      ctx: getVoiceContext(),
     });
 
     if (result.actions.length === 0) {
