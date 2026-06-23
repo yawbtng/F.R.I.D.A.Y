@@ -53,8 +53,9 @@
 - [x] Bitrot fixed: agent `tsc` emitted non-portable Convex `.d.ts` (TS2742) + leaked JS into
       `convex/`. Set agent build to typecheck-only (`noEmit`) — it runs via `tsx`, dist unused.
 - [x] **Browserbase upgraded** (2026-06-23) — live swarm runs unblocked.
-- [ ] Verify single-browser flow end-to-end (type URL → screenshot) — needs upgrade + 3 dev
-      processes (`npx convex dev`, agent worker, `pnpm dev`). Manual smoke.
+- [x] Browser plumbing verified LIVE: keepAlive create→reattach→navigate→screenshot works on the
+      upgraded tier (`apps/web/scripts/smoke-browserbase.ts`, PASS 2026-06-23). ⏭ full voice loop
+      (LiveKit/Convex) still needs a 3-process manual smoke — deferred to Phase 3 (voice is garnish).
 
 ## Phase 1 — The Swarm (headline, text-driven) — THE Browserbase moment
 - [ ] **PRE-TASK (do first): build `states.json` adapter registry** for a committed curated subset of
@@ -65,8 +66,8 @@
       → per-process voice context. 47 tests green incl. concurrent-fetch regression. ⏭ Browser
       *registry* + `browserId` routing still to come with `/api/fleet`.
 - [x] **`/api/fleet` built:** POST spawns N sessions (batched, cap 25) → `{browserId,sessionId,
-      liveViewUrl,token}`; DELETE closes one. Shared `createBrowserSession()` helper. ⏭ live-verify
-      spawn against tier + retry/backoff on LLM rate limits.
+      liveViewUrl,token}`; DELETE closes one. Shared `createBrowserSession()` helper — spawn flow
+      verified live via the keepAlive smoke. ⏭ retry/backoff on LLM rate limits.
 - [x] **Fan-out orchestrator built:** `runSwarm` over a capped worker pool → each worker returns the
       `{state,status,details?,raw,ms}` contract → aggregate `SwarmResult`. ⏭ live worker (navigate+extract).
 - [x] **Graceful partial-failure done:** a throwing/timing-out worker → status `error`; swarm returns
