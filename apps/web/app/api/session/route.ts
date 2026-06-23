@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
-import { Stagehand } from '@browserbasehq/stagehand';
 import { ConvexHttpClient } from 'convex/browser';
 import { SessionCreateSchema } from '@/lib/schemas';
 import { createSessionToken } from '@/lib/api-auth';
+import { createBrowserSession } from '@/lib/browserbase';
 import { rateLimit } from '@/lib/rate-limit';
 import { api } from '../../../../../convex/_generated/api';
 
@@ -26,30 +26,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (parsed.data.action === 'create') {
-      const stagehand = new Stagehand({
-        env: "BROWSERBASE",
-        apiKey: process.env.BROWSERBASE_API_KEY!,
-        projectId: process.env.BROWSERBASE_PROJECT_ID!,
-        keepAlive: true,
-        model: {
-          modelName: "xai/grok-4.1-fast",
-          baseURL: "https://openrouter.ai/api/v1",
-          apiKey: process.env.OPENROUTER_API_KEY!,
-        },
-      });
-      await stagehand.init();
-      const sessionId = stagehand.browserbaseSessionID!;
-
-      // Fetch debug URL
-      const debugRes = await fetch(
-        `https://api.browserbase.com/v1/sessions/${sessionId}/debug`,
-        { headers: { 'x-bb-api-key': process.env.BROWSERBASE_API_KEY! } }
-      );
-      const { debuggerFullscreenUrl } = await debugRes.json();
-
-      const token = await createSessionToken(sessionId);
-
-      await stagehand.close(); // keepAlive means session stays alive
+      const { sessionId, liveViewUrl, token } = await createBrowserSession();
 
       // Persist session to Convex (fire-and-forget, non-blocking)
       if (convex) {
@@ -62,7 +39,7 @@ export async function POST(req: NextRequest) {
 
       return Response.json({
         sessionId,
-        debugUrl: debuggerFullscreenUrl,
+        debugUrl: liveViewUrl,
         status: 'created',
         token,
       });

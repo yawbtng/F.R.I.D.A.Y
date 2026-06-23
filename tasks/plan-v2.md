@@ -53,8 +53,9 @@
 - [x] Bitrot fixed: agent `tsc` emitted non-portable Convex `.d.ts` (TS2742) + leaked JS into
       `convex/`. Set agent build to typecheck-only (`noEmit`) — it runs via `tsx`, dist unused.
 - [x] **Browserbase upgraded** (2026-06-23) — live swarm runs unblocked.
-- [ ] Verify single-browser flow end-to-end (type URL → screenshot) — needs upgrade + 3 dev
-      processes (`npx convex dev`, agent worker, `pnpm dev`). Manual smoke.
+- [x] Browser plumbing verified LIVE: keepAlive create→reattach→navigate→screenshot works on the
+      upgraded tier (`apps/web/scripts/smoke-browserbase.ts`, PASS 2026-06-23). ⏭ full voice loop
+      (LiveKit/Convex) still needs a 3-process manual smoke — deferred to Phase 3 (voice is garnish).
 
 ## Phase 1 — The Swarm (headline, text-driven) — THE Browserbase moment
 - [ ] **PRE-TASK (do first): build `states.json` adapter registry** for a committed curated subset of
@@ -64,12 +65,13 @@
       (`AgentContext {sessionId, token, signal?}`, own AbortController, 30s timeout); `_browserSessionId`
       → per-process voice context. 47 tests green incl. concurrent-fetch regression. ⏭ Browser
       *registry* + `browserId` routing still to come with `/api/fleet`.
-- [ ] `POST /api/fleet` → spawn (`bb.sessions.create` + `bb.sessions.debug`) → `{browserId,sessionId,
-      liveViewUrl}`. `DELETE /api/fleet/:id` → clean close. Concurrency cap + backoff.
-- [ ] **Fan-out orchestrator:** iterate the registry → one browser per state worker via `Promise.all`
-      (capped) → each returns the worker-contract object → synthesize aggregate result.
-- [ ] **Graceful partial-failure:** per-worker timeout + retry; cached last-good fallback; swarm
-      returns "X of N verified", failures flagged, never crashes.
+- [x] **`/api/fleet` built:** POST spawns N sessions (batched, cap 25) → `{browserId,sessionId,
+      liveViewUrl,token}`; DELETE closes one. Shared `createBrowserSession()` helper — spawn flow
+      verified live via the keepAlive smoke. ⏭ retry/backoff on LLM rate limits.
+- [x] **Fan-out orchestrator built:** `runSwarm` over a capped worker pool → each worker returns the
+      `{state,status,details?,raw,ms}` contract → aggregate `SwarmResult`. ⏭ live worker (navigate+extract).
+- [x] **Graceful partial-failure done:** a throwing/timing-out worker → status `error`; swarm returns
+      "X of N", flagged, never crashes (CRITICAL test #2 green). ⏭ retry + cached last-good fallback.
 - [ ] **Mission-control grid HUD:** live-view iframe tiles; light up on activity, gray out on failure;
       per-tile result badge (Active/Inactive/Not found).
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
