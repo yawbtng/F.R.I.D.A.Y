@@ -208,3 +208,28 @@ Live swarm is proven end-to-end (Model Gateway, X-of-N, parallel); the gap is th
    → per-portal act tuning (waits/observe) → curate easiest portals (some allow URL-query search).
 3. Get ONE portal fully green (real active/inactive/notfound for known entities), then replicate to 8-12.
 Then: grid HUD → record hero clip → shareable proof → voice agentic loop (above) → deploy.
+
+## Demo strategy (CEO review, 2026-06-24) — STEALTH HERO-BEAT chosen
+**Use case stays KYB-across-states** (no API, public, read-only, genuinely N sites) but pitch the
+**capability**: "point an agent swarm at any fragmented no-API sites, get structured answers fast, in
+parallel, watchable, with replay + honest provenance." Audience = a Browserbase eng/founder; the demo
+must make their product look indispensable.
+
+**Riskiest assumption tested + validated:** does Browserbase stealth clear blocked states?
+- Stealth = `browserbaseSessionCreateParams: { proxies:true, browserSettings:{ solveCaptchas:true } }`.
+- Results (Walmart Inc.): **OH blocked→active, MI notfound→active, NV blocked→active (probabilistic)**;
+  VA/CT notfound→blocked (honest reclassification); IL stays blocked (HTTP2 broken site — DROP it); UT notfound.
+- So stealth flips real walls green AND corrects misleading "notfound" → "blocked". Partial recovery is a
+  BETTER story than a clean pass (credibility > magic).
+
+**Built:** `createBrowserSession({stealth})` + `/api/fleet` stealth param + **"Retry blocked w/ stealth"**
+button on `/swarm` (re-runs unresolved tiles on fresh stealth sessions; anti-bot tiles flip green live).
+See [[stagehand_keepalive_release]] sibling note in [[friday_swarm_plan]] for stealth efficacy.
+
+**The clip recipe (beats):** type "verify Walmart Inc. across 20 states" → 20 cloud browsers spawn in
+parallel (the wow) → most resolve Active, a few go Blocked (anti-bot) → **"watch Browserbase stealth"** →
+Retry blocked w/ stealth → tiles flip green (truly-hard one stays honestly blocked) → click a tile → full
+session **replay** → **✦ Report** AI KYB summary → "~60s vs an afternoon by hand."
+
+**Before recording (curation pass):** drop/replace IL (broken), fix GA wrong-match, optional 50-tile
+finale (bump to Startup tier for one recording). Voice loop (Phase 3) = the follow-up touchpoint, not v1.
