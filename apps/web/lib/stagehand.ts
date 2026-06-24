@@ -1,4 +1,5 @@
 import { Stagehand } from "@browserbasehq/stagehand";
+import { releaseBrowserSession } from "./browserbase";
 
 interface StagehandEntry {
   stagehand: Stagehand;
@@ -78,6 +79,7 @@ setInterval(() => {
   for (const [id, entry] of instances) {
     if (now - entry.lastUsed > IDLE_TIMEOUT_MS) {
       entry.stagehand.close().catch(() => {});
+      releaseBrowserSession(id).catch(() => {}); // close() doesn't end a keepAlive session
       instances.delete(id);
     }
   }

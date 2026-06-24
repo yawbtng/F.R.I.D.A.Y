@@ -41,6 +41,7 @@ export const ScreenshotSchema = z.object({
 // Fleet: spawn N browsers for a swarm run. Cap at the Developer-tier concurrency limit.
 export const FleetSpawnSchema = z.object({
   count: z.number().int().min(1).max(25),
+  stealth: z.boolean().optional(),
 });
 
 export const FleetCloseSchema = z.object({

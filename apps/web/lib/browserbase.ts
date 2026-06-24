@@ -15,7 +15,7 @@ export interface CreatedSession {
   token: string;
 }
 
-export async function createBrowserSession(): Promise<CreatedSession> {
+export async function createBrowserSession(opts?: { stealth?: boolean }): Promise<CreatedSession> {
   const stagehand = new Stagehand({
     env: "BROWSERBASE",
     apiKey: process.env.BROWSERBASE_API_KEY!,
@@ -24,6 +24,19 @@ export async function createBrowserSession(): Promise<CreatedSession> {
     // Route through Browserbase's Model Gateway: a plain provider/model slug billed via
     // the Browserbase API key (the top-level apiKey above). No provider key or baseURL.
     model: process.env.STAGEHAND_MODEL || "openai/gpt-4.1-mini",
+    // Stealth pass: residential proxies + auto CAPTCHA-solving, set at session creation
+    // (reattaches preserve it). Verified to clear anti-bot walls a naive session hits
+    // (OH security check, MI) and to expose ones mislabeled "notfound" (VA/CT) as real
+    // blocks. Some walls (NV hCaptcha) still need Scale-tier advancedStealth.
+    ...(opts?.stealth
+      ? {
+          browserbaseSessionCreateParams: {
+            projectId: process.env.BROWSERBASE_PROJECT_ID!,
+            proxies: true,
+            browserSettings: { solveCaptchas: true },
+          },
+        }
+      : {}),
   });
   await stagehand.init();
   const sessionId = stagehand.browserbaseSessionID!;
@@ -41,4 +54,24 @@ export async function createBrowserSession(): Promise<CreatedSession> {
   await stagehand.close(); // keepAlive keeps the session alive after the handle closes
 
   return { sessionId, liveViewUrl: debuggerFullscreenUrl, token };
+}
+
+/**
+ * End a session on Browserbase. `stagehand.close()` alone does NOT stop a keepAlive
+ * session — it disconnects the handle but the cloud session keeps RUNNING (and billing)
+ * until the platform idle-timeout. REQUEST_RELEASE ends it immediately. Call this whenever
+ * a swarm worker finishes so concurrency frees up and minutes aren't wasted.
+ */
+export async function releaseBrowserSession(sessionId: string): Promise<void> {
+  await fetch(`https://api.browserbase.com/v1/sessions/${sessionId}`, {
+    method: "POST",
+    headers: {
+      "x-bb-api-key": process.env.BROWSERBASE_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      projectId: process.env.BROWSERBASE_PROJECT_ID!,
+      status: "REQUEST_RELEASE",
+    }),
+  });
 }

@@ -9,7 +9,7 @@
 import { NextRequest } from "next/server";
 import { FleetSpawnSchema, FleetCloseSchema } from "@/lib/schemas";
 import { rateLimit } from "@/lib/rate-limit";
-import { createBrowserSession } from "@/lib/browserbase";
+import { createBrowserSession, releaseBrowserSession } from "@/lib/browserbase";
 import { removeSession } from "@/lib/stagehand";
 
 export const maxDuration = 60;
@@ -26,7 +26,8 @@ interface SpawnedBrowser {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // One spawn per run, but allow several runs/minute from the same demo machine.
+  if (!rateLimit(ip, 60)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < parsed.data.count; i += SPAWN_BATCH) {
       const size = Math.min(SPAWN_BATCH, parsed.data.count - i);
       const created = await Promise.all(
-        Array.from({ length: size }, () => createBrowserSession()),
+        Array.from({ length: size }, () => createBrowserSession({ stealth: parsed.data.stealth })),
       );
       for (const c of created) {
         browsers.push({ browserId: c.sessionId, sessionId: c.sessionId, liveViewUrl: c.liveViewUrl, token: c.token });
@@ -67,6 +68,7 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  removeSession(parsed.data.sessionId);
+  removeSession(parsed.data.sessionId); // drop the local handle
+  await releaseBrowserSession(parsed.data.sessionId).catch(() => {}); // actually end the cloud session
   return Response.json({ closed: parsed.data.sessionId });
 }

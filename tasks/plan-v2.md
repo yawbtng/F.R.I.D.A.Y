@@ -74,8 +74,29 @@
       `{state,status,details?,raw,ms}` contract → aggregate `SwarmResult`. ⏭ live worker (navigate+extract).
 - [x] **Graceful partial-failure done:** a throwing/timing-out worker → status `error`; swarm returns
       "X of N", flagged, never crashes (CRITICAL test #2 green). ⏭ retry + cached last-good fallback.
-- [ ] **Mission-control grid HUD:** live-view iframe tiles; light up on activity, gray out on failure;
-      per-tile result badge (Active/Inactive/Not found).
+- [x] **Mission-control grid HUD built** (branch `feat/grid-hud`): `/swarm` page spawns a fleet and
+      fans out one Stagehand agent + structured extract per state, lighting each browser-chrome tile
+      live (Queued → Working pulse → Active/Inactive/Not found/Error + timing badge), with X/N + elapsed
+      header. **Client-driven** (no backend orchestrator) so it deploys to Vercel unchanged; web-owned
+      adapter copy in `apps/web/lib/sos-adapters.ts`. Per-IP rate ceiling raised on fan-out routes.
+      ⏭ click-to-expand WebPreview view (Phase 2 polish); verify the grid visually + at scale.
+- [x] **Focus modal + auto-close** (2026-06-23): click any tile → live/frozen `BrowserModal`; on each
+      worker completing, capture a final screenshot, freeze the tile to it, then release that session.
+- [x] **Session-release bug fixed (CRITICAL):** keepAlive sessions survive `stagehand.close()`, so DELETE
+      was leaking RUNNING (billing) sessions — 13 found alive, which also tripped the 25-cap → spawn 429.
+      `releaseBrowserSession()` (REQUEST_RELEASE) on DELETE + idle cleanup. Verified 0 RUNNING after a
+      20-state run. See [[stagehand_keepalive_release]].
+- [x] **Reliability + portals:** sharpened agent goal (accept terms gates, wait for results, best active
+      match) + `maxSteps` 14→25; registry expanded to **20 status-public states**. Baseline (Walmart Inc.):
+      **13/20 definitive** (CA FL NY CO NC PA WA MA MN OR TN AZ active; GA flagged wrong-match).
+- [x] **`Blocked` status** (CAPTCHA/anti-bot/unreachable) + sharper "stop on block" goal: IL/OH/NV now
+      report `blocked` honestly AND fast (NV 115s→11s) instead of a misleading `notfound`. Net 20-grid:
+      ~13 verified + 3 blocked + 4 flaky (MI VA CT UT). ⏭ retry-on-notfound for the flaky 4;
+      search-discovery (Exa) for true autonomy; Browserbase session **replay** in the focus modal.
+- [x] **Session replay** (Phase-2 artifact, pulled early): click a completed tile → Browserbase HLS
+      replay via hls.js (rrweb /recording is deprecated; proxy /replays .m3u8). Screenshot = poster.
+- [x] **AI verification report** (Phase-3 artifact, pulled early): end-of-run "✦ Report" → Vercel AI SDK
+      → OpenRouter synthesizes a KYB findings summary; counts pre-computed server-side. Verified live.
 - [ ] **Live plan tree:** visual reveal of the states being checked (not a real planning subsystem).
 - [ ] **Measure latency** on ~10 states; set the narration number from reality.
 - [ ] **Verify (GATE):** one text command → ~20 browsers fan out → grid lights up → synthesized
@@ -187,3 +208,28 @@ Live swarm is proven end-to-end (Model Gateway, X-of-N, parallel); the gap is th
    → per-portal act tuning (waits/observe) → curate easiest portals (some allow URL-query search).
 3. Get ONE portal fully green (real active/inactive/notfound for known entities), then replicate to 8-12.
 Then: grid HUD → record hero clip → shareable proof → voice agentic loop (above) → deploy.
+
+## Demo strategy (CEO review, 2026-06-24) — STEALTH HERO-BEAT chosen
+**Use case stays KYB-across-states** (no API, public, read-only, genuinely N sites) but pitch the
+**capability**: "point an agent swarm at any fragmented no-API sites, get structured answers fast, in
+parallel, watchable, with replay + honest provenance." Audience = a Browserbase eng/founder; the demo
+must make their product look indispensable.
+
+**Riskiest assumption tested + validated:** does Browserbase stealth clear blocked states?
+- Stealth = `browserbaseSessionCreateParams: { proxies:true, browserSettings:{ solveCaptchas:true } }`.
+- Results (Walmart Inc.): **OH blocked→active, MI notfound→active, NV blocked→active (probabilistic)**;
+  VA/CT notfound→blocked (honest reclassification); IL stays blocked (HTTP2 broken site — DROP it); UT notfound.
+- So stealth flips real walls green AND corrects misleading "notfound" → "blocked". Partial recovery is a
+  BETTER story than a clean pass (credibility > magic).
+
+**Built:** `createBrowserSession({stealth})` + `/api/fleet` stealth param + **"Retry blocked w/ stealth"**
+button on `/swarm` (re-runs unresolved tiles on fresh stealth sessions; anti-bot tiles flip green live).
+See [[stagehand_keepalive_release]] sibling note in [[friday_swarm_plan]] for stealth efficacy.
+
+**The clip recipe (beats):** type "verify Walmart Inc. across 20 states" → 20 cloud browsers spawn in
+parallel (the wow) → most resolve Active, a few go Blocked (anti-bot) → **"watch Browserbase stealth"** →
+Retry blocked w/ stealth → tiles flip green (truly-hard one stays honestly blocked) → click a tile → full
+session **replay** → **✦ Report** AI KYB summary → "~60s vs an afternoon by hand."
+
+**Before recording (curation pass):** drop/replace IL (broken), fix GA wrong-match, optional 50-tile
+finale (bump to Startup tier for one recording). Voice loop (Phase 3) = the follow-up touchpoint, not v1.

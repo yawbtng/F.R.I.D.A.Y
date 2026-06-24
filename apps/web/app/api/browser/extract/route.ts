@@ -8,7 +8,8 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // Higher per-IP ceiling for the swarm fan-out (paired with /api/browser/agent).
+  if (!rateLimit(ip, 120)) {
     return Response.json(
       { error: "Too many requests", code: "RATE_LIMITED" },
       { status: 429 }

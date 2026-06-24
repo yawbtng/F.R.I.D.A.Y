@@ -13,7 +13,9 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // Swarm fan-out: one grid tab fires ~2 calls per state in a burst, so the per-IP
+  // ceiling must clear a full 25-state run (≈50 calls) — well above the 30/min default.
+  if (!rateLimit(ip, 120)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
     const agent = stagehand.agent({ model: process.env.STAGEHAND_MODEL || "openai/gpt-4.1-mini" });
     const result = await agent.execute({
       instruction: parsed.data.instruction,
-      maxSteps: parsed.data.maxSteps ?? 14,
+      maxSteps: parsed.data.maxSteps ?? 25,
     });
 
     return Response.json({
