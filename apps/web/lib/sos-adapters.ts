@@ -77,18 +77,6 @@ export const STATE_ADAPTERS: Record<string, StateAdapter> = {
     searchUrl: "https://www.sos.state.co.us/biz/BusinessEntityCriteriaExt.do",
     agentGoal: GOAL,
   },
-  GA: {
-    state: "GA",
-    name: "Georgia",
-    searchUrl: "https://ecorp.sos.ga.gov/BusinessSearch",
-    agentGoal: GOAL,
-  },
-  IL: {
-    state: "IL",
-    name: "Illinois",
-    searchUrl: "https://apps.ilsos.gov/businessentitysearch/",
-    agentGoal: GOAL,
-  },
   MI: {
     state: "MI",
     name: "Michigan",
