@@ -63,20 +63,22 @@ function releaseOne(b: Spawned) {
 }
 
 async function main() {
-  const [entity, ...args] = process.argv.slice(2);
+  const [entity, ...rawArgs] = process.argv.slice(2);
   if (!entity) {
-    console.error('usage: tsx apps/web/scripts/verify-states.ts "<entity>" [STATE...]');
+    console.error('usage: tsx apps/web/scripts/verify-states.ts "<entity>" [STATE...] [stealth]');
     process.exit(1);
   }
+  const stealth = rawArgs.some((a) => a.toLowerCase() === "stealth");
+  const args = rawArgs.filter((a) => a.toLowerCase() !== "stealth");
   const states = (args.length ? args.map((s) => s.toUpperCase()) : SUPPORTED_STATES).filter(
     (s) => STATE_ADAPTERS[s],
   );
-  console.log(`[verify] "${entity}" across ${states.length}: ${states.join(", ")}`);
+  console.log(`[verify] "${entity}" across ${states.length} (stealth=${stealth}): ${states.join(", ")}`);
 
   const res = await fetch(`${APP}/api/fleet`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ count: states.length }),
+    body: JSON.stringify({ count: states.length, stealth }),
   });
   if (!res.ok) throw new Error(`fleet spawn ${res.status}: ${await res.text()}`);
   const { browsers } = (await res.json()) as { browsers: Spawned[] };

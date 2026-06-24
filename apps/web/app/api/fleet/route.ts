@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < parsed.data.count; i += SPAWN_BATCH) {
       const size = Math.min(SPAWN_BATCH, parsed.data.count - i);
       const created = await Promise.all(
-        Array.from({ length: size }, () => createBrowserSession()),
+        Array.from({ length: size }, () => createBrowserSession({ stealth: parsed.data.stealth })),
       );
       for (const c of created) {
         browsers.push({ browserId: c.sessionId, sessionId: c.sessionId, liveViewUrl: c.liveViewUrl, token: c.token });

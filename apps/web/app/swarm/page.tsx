@@ -104,6 +104,7 @@ export default function SwarmPage() {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const fleetRef = useRef<SpawnedBrowser[]>([]);
 
   // Release the fleet if the user navigates away mid-run.
@@ -191,6 +192,58 @@ export default function SwarmPage() {
     setError('');
   }, []);
 
+  // Hero beat: re-run the unresolved tiles (blocked / notfound / error) with Browserbase
+  // stealth + proxies. Anti-bot walls flip to green live; genuinely-hard ones stay honest.
+  const retryWithStealth = useCallback(async () => {
+    const targets = tiles
+      .map((t, i) => ({ t, i }))
+      .filter(({ t }) => t.status !== 'active' && t.status !== 'inactive');
+    if (targets.length === 0 || retrying) return;
+    setRetrying(true);
+    try {
+      const res = await fetch('/api/fleet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: targets.length, stealth: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'stealth spawn failed');
+      const browsers: SpawnedBrowser[] = data.browsers;
+      fleetRef.current = [...fleetRef.current, ...browsers];
+
+      // Swap each target tile onto its fresh stealth session and re-run it.
+      targets.forEach(({ i }, k) =>
+        updateTile(i, {
+          status: 'working',
+          sessionId: browsers[k].sessionId,
+          token: browsers[k].token,
+          liveViewUrl: browsers[k].liveViewUrl,
+          screenshotUrl: undefined,
+          ms: undefined,
+        }),
+      );
+
+      await Promise.allSettled(
+        targets.map(async ({ t, i }, k) => {
+          const t0 = Date.now();
+          let status: TileState = 'error';
+          try {
+            status = await verifyState(browsers[k], t.state, entity.trim());
+          } catch {
+            status = 'error';
+          }
+          const screenshotUrl = await captureFrame(browsers[k]);
+          updateTile(i, { status, ms: Date.now() - t0, screenshotUrl });
+          releaseOne(browsers[k]);
+        }),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'stealth retry failed');
+    } finally {
+      setRetrying(false);
+    }
+  }, [tiles, entity, retrying]);
+
   const generateSummary = useCallback(async () => {
     setSummaryOpen(true);
     setSummaryLoading(true);
@@ -243,17 +296,28 @@ export default function SwarmPage() {
                   {elapsed.toFixed(1)}s{errored > 0 ? ` · ${errored} error` : ''}
                 </div>
               </div>
+              {phase === 'done' &&
+                tiles.some((t) => t.status !== 'active' && t.status !== 'inactive') && (
+                  <button
+                    onClick={retryWithStealth}
+                    disabled={retrying}
+                    className="rounded-md px-3 py-1.5 text-xs font-semibold text-orange-300 bg-orange-400/15 ring-1 ring-orange-400/40 hover:bg-orange-400/25 disabled:opacity-50 focus-ring"
+                  >
+                    {retrying ? 'Retrying…' : '🛡 Retry blocked w/ stealth'}
+                  </button>
+                )}
               {phase === 'done' && (
                 <button
                   onClick={generateSummary}
-                  className="rounded-md px-3 py-1.5 text-xs font-semibold text-friday-accent bg-friday-accent/15 ring-1 ring-friday-accent/40 hover:bg-friday-accent/25 focus-ring"
+                  disabled={retrying}
+                  className="rounded-md px-3 py-1.5 text-xs font-semibold text-friday-accent bg-friday-accent/15 ring-1 ring-friday-accent/40 hover:bg-friday-accent/25 disabled:opacity-50 focus-ring"
                 >
                   ✦ Report
                 </button>
               )}
               <button
                 onClick={reset}
-                disabled={running}
+                disabled={running || retrying}
                 className="rounded-md px-3 py-1.5 text-xs font-medium glass hover:bg-white/[0.06] disabled:opacity-40 focus-ring"
               >
                 New run
