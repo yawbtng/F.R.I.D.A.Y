@@ -13,6 +13,7 @@ import type { PlanTarget } from '@/lib/schemas';
 import { useSwarm } from '@/hooks/use-swarm';
 import { SwarmGrid } from '@/components/swarm-grid';
 import { PlanReview } from '@/components/plan-review';
+import { PlanningLoader } from '@/components/planning-loader';
 import { BrowserModal } from '@/components/browser-modal';
 import { ArtifactModal } from '@/components/artifact-modal';
 
@@ -29,6 +30,8 @@ export default function SwarmPage() {
   const [task, setTask] = useState('Check whether these are active, registered businesses: Tesla, Apple, Stripe, OpenAI');
   const [autoRun, setAutoRun] = useState(false);
   const [plan, setPlan] = useState<SwarmTarget[]>([]);
+  const [planTitle, setPlanTitle] = useState('');
+  const [planNotes, setPlanNotes] = useState<string[]>([]);
   const [planError, setPlanError] = useState('');
   // KYB preset config
   const [entity, setEntity] = useState('Tesla, Inc.');
@@ -57,6 +60,10 @@ export default function SwarmPage() {
       if (!res.ok) throw new Error(data.error || 'planning failed');
       const targets = planToTargets(data.targets as PlanTarget[]);
       setPlan(targets);
+      // Capture the run title + adversarial-critic notes for the review gate (defensive:
+      // the review UI degrades gracefully when either is absent).
+      setPlanTitle(typeof data.title === 'string' ? data.title : '');
+      setPlanNotes(Array.isArray(data.planNotes) ? (data.planNotes as string[]) : []);
       if (autoRun) {
         setStep('config');
         swarm.run(targets, { task: t });
@@ -251,12 +258,7 @@ export default function SwarmPage() {
         )}
 
         {/* Planning */}
-        {configuring && step === 'planning' && (
-          <div className="flex items-center gap-3 text-sm text-friday-text-secondary">
-            <div className="w-4 h-4 border-2 border-friday-accent/30 border-t-friday-accent rounded-full animate-spin" />
-            Planning targets…
-          </div>
-        )}
+        {configuring && step === 'planning' && <PlanningLoader />}
 
         {/* Review gate */}
         {configuring && step === 'review' && (
@@ -269,6 +271,8 @@ export default function SwarmPage() {
             }}
             onBack={() => setStep('config')}
             error={error}
+            title={planTitle}
+            planNotes={planNotes}
           />
         )}
 
