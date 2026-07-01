@@ -126,7 +126,7 @@ export default function SwarmPage() {
               )}
               {phase === 'done' && (
                 <button
-                  onClick={swarm.generateSummary}
+                  onClick={swarm.openReport}
                   disabled={retrying}
                   className="rounded-md px-3 py-1.5 text-xs font-semibold text-friday-accent bg-friday-accent/15 ring-1 ring-friday-accent/40 hover:bg-friday-accent/25 disabled:opacity-50 focus-ring"
                 >
@@ -291,12 +291,13 @@ export default function SwarmPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {swarm.summaryOpen && (
+        {swarm.reportOpen && (
           <ArtifactModal
-            entity={reportSubject}
-            summary={swarm.summaryText}
-            loading={swarm.summaryLoading}
-            onClose={swarm.closeSummary}
+            task={reportSubject}
+            items={tiles}
+            narrative={swarm.narrative}
+            loading={swarm.reportLoading}
+            onClose={swarm.closeReport}
           />
         )}
       </AnimatePresence>

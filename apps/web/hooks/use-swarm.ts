@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Tile, TileState } from '@/components/swarm-grid';
 import type { SwarmTarget } from '@/lib/swarm-target';
+import type { ReportNarrative } from '@/lib/report';
 import { runTarget, isHttpUrl, type RunSession } from '@/lib/run-target';
 
 export interface SpawnedBrowser {
@@ -65,12 +66,15 @@ export function useSwarm() {
   const [startTs, setStartTs] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [retrying, setRetrying] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [summaryText, setSummaryText] = useState('');
-  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [narrative, setNarrative] = useState<ReportNarrative | null>(null);
   const fleetRef = useRef<SpawnedBrowser[]>([]);
   const targetsRef = useRef<SwarmTarget[]>([]); // kept so retry knows each tile's goal/extract
   const taskRef = useRef<string>(''); // the task label, for the report
+  const tilesRef = useRef<Tile[]>([]);
+  tilesRef.current = tiles; // always-latest snapshot for the report generator
+  const autoReportRef = useRef(false); // auto-open the report once per run
 
   // Release the fleet if the consumer unmounts mid-run.
   useEffect(() => () => releaseFleet(fleetRef.current), []);
@@ -209,30 +213,56 @@ export function useSwarm() {
       setError(e instanceof Error ? e.message : 'stealth retry failed');
     } finally {
       setRetrying(false);
+      setNarrative(null); // tiles changed — invalidate the cached report so it regenerates
     }
   }, [tiles, retrying, updateTile]);
 
-  const generateSummary = useCallback(async () => {
-    setSummaryOpen(true);
-    setSummaryLoading(true);
-    setSummaryText('');
+  // Fetch the AI narrative (headline / takeaway / notes). Reads tiles via a ref so its
+  // identity is stable (the auto-open effect depends on it). The per-target rows are built
+  // deterministically from tiles in the UI — this only synthesizes the prose.
+  const generateReport = useCallback(async () => {
+    setReportLoading(true);
     try {
       const res = await fetch('/api/swarm/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           task: taskRef.current,
-          results: tiles.map((t) => ({ label: t.label, status: t.status, result: t.result, ms: t.ms })),
+          results: tilesRef.current.map((t) => ({
+            label: t.label,
+            status: t.status,
+            result: t.result,
+            ms: t.ms,
+          })),
         }),
       });
       const data = await res.json();
-      setSummaryText(res.ok ? data.summary : data.error || 'Failed to generate report.');
+      setNarrative(
+        res.ok
+          ? { headline: data.headline ?? '', takeaway: data.takeaway ?? '', notes: data.notes ?? [] }
+          : { headline: 'Report unavailable', takeaway: data.error || 'Failed to synthesize.', notes: [] },
+      );
     } catch {
-      setSummaryText('Failed to generate report.');
+      setNarrative({ headline: 'Report unavailable', takeaway: 'Failed to synthesize the report.', notes: [] });
     } finally {
-      setSummaryLoading(false);
+      setReportLoading(false);
     }
-  }, [tiles]);
+  }, []);
+
+  const openReport = useCallback(() => {
+    setReportOpen(true);
+    if (!narrative && !reportLoading) generateReport();
+  }, [narrative, reportLoading, generateReport]);
+
+  // Auto-open + synthesize the report the moment a run finishes (once per run).
+  useEffect(() => {
+    if (phase === 'done' && !autoReportRef.current) {
+      autoReportRef.current = true;
+      setReportOpen(true);
+      generateReport();
+    }
+    if (phase === 'idle') autoReportRef.current = false;
+  }, [phase, generateReport]);
 
   const reset = useCallback(() => {
     releaseFleet(fleetRef.current);
@@ -242,6 +272,9 @@ export function useSwarm() {
     setPhase('idle');
     setElapsed(0);
     setError('');
+    setReportOpen(false);
+    setNarrative(null);
+    autoReportRef.current = false;
   }, []);
 
   return {
@@ -252,14 +285,16 @@ export function useSwarm() {
     retrying,
     running: phase === 'spawning' || phase === 'running',
     hasUnresolved: tiles.some((t) => UNRESOLVED.includes(t.status)),
-    summaryOpen,
-    summaryText,
-    summaryLoading,
+    task: taskRef.current,
+    reportOpen,
+    reportLoading,
+    narrative,
+    openReport,
+    closeReport: () => setReportOpen(false),
+    regenerateReport: generateReport,
     run,
     retryWithStealth,
-    generateSummary,
     reset,
     setError,
-    closeSummary: () => setSummaryOpen(false),
   };
 }

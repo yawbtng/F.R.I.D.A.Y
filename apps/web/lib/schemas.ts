@@ -83,3 +83,13 @@ export const PlanOutputSchema = z.object({
 
 export type PlanTarget = z.infer<typeof PlanTargetSchema>;
 export type PlanOutput = z.infer<typeof PlanOutputSchema>;
+
+// Structured report narrative (strict-mode safe: all fields required). The per-target rows
+// come from the swarm's own data client-side; the LLM only writes the synthesis prose.
+export const SummaryOutputSchema = z.object({
+  headline: z.string(),
+  takeaway: z.string(),
+  notes: z.array(z.string()),
+});
+
+export type SummaryOutput = z.infer<typeof SummaryOutputSchema>;

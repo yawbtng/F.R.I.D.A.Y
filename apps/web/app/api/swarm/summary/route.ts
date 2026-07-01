@@ -5,8 +5,9 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
+import { SummaryOutputSchema } from "@/lib/schemas";
 
 export const maxDuration = 30;
 
@@ -77,20 +78,20 @@ export async function POST(req: NextRequest) {
     `standing; inactive = dissolved / revoked / expired (worth attention); notfound = no matching record; ` +
     `blocked = the site blocked automated access (CAPTCHA/anti-bot) so it could not be read — a portal ` +
     `limitation, NOT a red flag; error = the check itself failed.\n\n` +
-    `Write a concise report in PLAIN TEXT (no markdown symbols — no #, *, or backticks). Use short labeled ` +
-    `sections separated by blank lines:\n` +
-    `HEADLINE: one sentence with the overall finding.\n` +
-    `BREAKDOWN: counts per status; call out the notable targets and their answers.\n` +
-    `NOTES: flag anything needing attention (inactive/dissolved, blocked portals, errors) and any anomalies.\n` +
-    `TAKEAWAY: one-line bottom line for whoever asked.\n` +
-    `Under 180 words. Be precise; never invent targets not in the data.`;
+    `Write the synthesis (the per-target rows are shown separately in the UI, so do NOT re-list them all):\n` +
+    `- headline: one sentence with the overall finding (how many resolved, the gist).\n` +
+    `- takeaway: one-line bottom line for whoever asked.\n` +
+    `- notes: 1-4 short bullet strings flagging what needs attention (inactive/dissolved, blocked portals, ` +
+    `errors, anomalies) and calling out a couple of notable answers. Empty array if nothing notable.\n` +
+    `Plain text, no markdown symbols. Be precise; never invent targets not in the data.`;
 
   try {
-    const { text } = await generateText({
+    const { output } = await generateText({
       model: openrouter.chat(process.env.SUMMARY_MODEL || "openai/gpt-4.1-mini"),
+      output: Output.object({ schema: SummaryOutputSchema }),
       prompt,
     });
-    return Response.json({ summary: text });
+    return Response.json(output);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return Response.json({ error: message, code: "SUMMARY_ERROR" }, { status: 500 });
