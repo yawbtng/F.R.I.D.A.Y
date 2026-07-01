@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
@@ -36,7 +36,7 @@ const openrouter = createOpenAI({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip, 120)) {
+  if (!rateLimit(ip, SWARM_LIMIT)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 

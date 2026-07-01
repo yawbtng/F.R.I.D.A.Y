@@ -6,7 +6,7 @@
 import { NextRequest } from "next/server";
 import { AgentSchema } from "@/lib/schemas";
 import { validateAgentRequest } from "@/lib/api-auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
 import { getStagehand } from "@/lib/stagehand";
 
 export const maxDuration = 60;
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   // Swarm fan-out: one grid tab fires ~2 calls per state in a burst, so the per-IP
   // ceiling must clear a full 25-state run (≈50 calls) — well above the 30/min default.
-  if (!rateLimit(ip, 120)) {
+  if (!rateLimit(ip, SWARM_LIMIT)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 

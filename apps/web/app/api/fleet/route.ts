@@ -8,7 +8,7 @@
 
 import { NextRequest } from "next/server";
 import { FleetSpawnSchema, FleetCloseSchema } from "@/lib/schemas";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
 import { createBrowserSession, releaseBrowserSession } from "@/lib/browserbase";
 import { removeSession } from "@/lib/stagehand";
 
@@ -27,7 +27,7 @@ interface SpawnedBrowser {
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   // One spawn per run, but allow several runs/minute from the same demo machine.
-  if (!rateLimit(ip, 60)) {
+  if (!rateLimit(ip, SWARM_LIMIT)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 
