@@ -84,6 +84,18 @@ export const PlanOutputSchema = z.object({
 export type PlanTarget = z.infer<typeof PlanTargetSchema>;
 export type PlanOutput = z.infer<typeof PlanOutputSchema>;
 
+// Critic/refine pass output = the same plan shape plus `planNotes`: 1-4 short strings
+// describing what the adversarial reviewer tightened (empty if the draft was already good).
+// Strict-mode safe: every field required; target fields stay nullable-not-optional via
+// PlanTargetSchema. `planNotes` is a required array (no minItems — an empty array is valid).
+export const PlanRefineOutputSchema = z.object({
+  title: z.string(),
+  targets: z.array(PlanTargetSchema),
+  planNotes: z.array(z.string()),
+});
+
+export type PlanRefined = z.infer<typeof PlanRefineOutputSchema>;
+
 // Structured report narrative (strict-mode safe: all fields required). The per-target rows
 // come from the swarm's own data client-side; the LLM only writes the synthesis prose.
 export const SummaryOutputSchema = z.object({
