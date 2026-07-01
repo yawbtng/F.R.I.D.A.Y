@@ -9,7 +9,15 @@
 // READ-ONLY lookups only (no write actions on government portals). Avoid pay-to-view
 // portals like Delaware, which paywalls entity status.
 
-export type WorkerStatus = "active" | "inactive" | "notfound" | "blocked" | "error";
+// "done" = a generic (non-KYB) target that reached its page and extracted a value.
+// The KYB path never uses "done"; it maps to active/inactive/notfound/blocked instead.
+export type WorkerStatus =
+  | "active"
+  | "inactive"
+  | "notfound"
+  | "blocked"
+  | "error"
+  | "done";
 
 export interface StateAdapter {
   /** 2-letter code, e.g. "CA". */
@@ -170,6 +178,15 @@ export function goalFor(adapter: StateAdapter, entity: string): string {
   return adapter.agentGoal.replaceAll("{entity}", entity);
 }
 
+/** True when a page/text looks like the portal stopped us (CAPTCHA / anti-bot /
+ *  unreachable), as opposed to "no record found". Shared by the KYB `mapStatus` and
+ *  the generic swarm classifier so both agree on what "blocked" means. */
+export function isBlocked(text: string): boolean {
+  return /blocked|captcha|are you human|security check|robot|verify you are|access denied|forbidden|can.?t be reached|unreachable/.test(
+    text.toLowerCase(),
+  );
+}
+
 /** Normalize an extracted value into a status. Check 'inactive' before 'active'
  *  because the word "inactive" contains "active". */
 export function mapStatus(data: unknown): WorkerStatus {
@@ -177,10 +194,7 @@ export function mapStatus(data: unknown): WorkerStatus {
   const s = String(
     d.status ?? d.standing ?? d.extraction ?? d.message ?? (typeof data === "string" ? data : ""),
   ).toLowerCase();
-  // Blocked = the portal stopped us (CAPTCHA / anti-bot / unreachable), NOT "no record".
-  if (/blocked|captcha|are you human|security check|robot|verify you are|access denied|forbidden|can.?t be reached|unreachable/.test(s)) {
-    return "blocked";
-  }
+  if (isBlocked(s)) return "blocked";
   if (/inactive|expired|dissolved|revoked|forfeit|cancel|terminat|delinquent/.test(s)) {
     return "inactive";
   }

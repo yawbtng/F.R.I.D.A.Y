@@ -43,14 +43,14 @@ export function BrowserModal({ tile, onClose }: { tile: Tile; onClose: () => voi
           </div>
 
           <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-1 rounded-md bg-white/[0.04] border border-white/[0.06]">
-            <span className="text-xs font-mono font-semibold text-friday-text-primary shrink-0">{tile.state}</span>
-            <span className="text-xs text-friday-text-secondary shrink-0">{tile.name}</span>
+            <span className="text-xs font-mono font-semibold text-friday-text-primary shrink-0">{tile.label}</span>
             <span className="text-xs font-mono text-friday-text-tertiary truncate">· {hostOf(tile.url)}</span>
           </div>
 
           <div className={`flex items-center gap-1.5 shrink-0 ${m.text}`}>
             <span className={`w-2 h-2 rounded-full ${m.dot}`} />
             <span className="text-xs font-medium uppercase tracking-wide">{m.label}</span>
+            {tile.result && <span className="text-xs font-mono text-friday-text-secondary truncate max-w-[16rem]">· {tile.result}</span>}
             {tile.ms != null && (
               <span className="text-xs font-mono text-friday-text-tertiary">· {(tile.ms / 1000).toFixed(1)}s</span>
             )}
@@ -75,7 +75,7 @@ export function BrowserModal({ tile, onClose }: { tile: Tile; onClose: () => voi
           ) : (
             <iframe
               src={tile.liveViewUrl}
-              title={`${tile.name} focused`}
+              title={`${tile.label} focused`}
               className="absolute inset-0 w-full h-full border-0"
               sandbox="allow-scripts allow-same-origin"
             />

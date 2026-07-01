@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { SearchSchema } from "@/lib/schemas";
 import { validateAgentRequest } from "@/lib/api-auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
 import Exa from "exa-js";
 
 export const maxDuration = 60;
@@ -14,7 +14,9 @@ function getExa(): Exa {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // Search is called per-target for URL discovery during a fan-out, so it shares the swarm
+  // ceiling (see SWARM_LIMIT). On the default 30 bucket it would 429 mid-run.
+  if (!rateLimit(ip, SWARM_LIMIT)) {
     return Response.json(
       { error: "Too many requests", code: "RATE_LIMITED" },
       { status: 429 }

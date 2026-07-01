@@ -7,7 +7,7 @@
 import { NextRequest } from "next/server";
 import { ScreenshotSchema } from "@/lib/schemas"; // { sessionId } — same shape we need
 import { validateAgentRequest } from "@/lib/api-auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
@@ -16,7 +16,7 @@ const BB = "https://api.browserbase.com";
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   // Shares the global per-IP counter with the swarm routes — keep the same high ceiling.
-  if (!rateLimit(ip, 120)) {
+  if (!rateLimit(ip, SWARM_LIMIT)) {
     return Response.json({ error: "Too many requests", code: "RATE_LIMITED" }, { status: 429 });
   }
 

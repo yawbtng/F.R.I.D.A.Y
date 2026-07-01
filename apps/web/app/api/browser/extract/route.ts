@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { ExtractSchema } from "@/lib/schemas";
 import { validateAgentRequest } from "@/lib/api-auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, SWARM_LIMIT } from "@/lib/rate-limit";
 import { getStagehand } from "@/lib/stagehand";
 
 export const maxDuration = 60;
@@ -9,7 +9,7 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   // Higher per-IP ceiling for the swarm fan-out (paired with /api/browser/agent).
-  if (!rateLimit(ip, 120)) {
+  if (!rateLimit(ip, SWARM_LIMIT)) {
     return Response.json(
       { error: "Too many requests", code: "RATE_LIMITED" },
       { status: 429 }
