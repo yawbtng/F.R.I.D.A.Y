@@ -42,11 +42,12 @@ export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
   return planTargets.map((pt, i) => ({
     id: `t${i}-${slug(pt.label)}`,
     label: pt.label,
-    startUrl: pt.startUrl,
-    query: pt.query,
+    // strict-mode schema returns null (not undefined) for absent optional fields.
+    startUrl: pt.startUrl ?? undefined,
+    query: pt.query ?? undefined,
     goal: pt.goal,
     extract: pt.extract,
-    engine: pt.engine,
+    engine: pt.engine ?? undefined,
   }));
 }
 

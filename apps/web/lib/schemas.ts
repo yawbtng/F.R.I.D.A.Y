@@ -62,21 +62,23 @@ export const PlanRequestSchema = z.object({
   task: z.string().min(1, "Task cannot be empty").max(2000),
 });
 
-// One planned target. `startUrl` is intentionally NOT z.url() — the LLM occasionally
-// emits a bare domain or a stray value, and one bad URL must not fail the whole plan;
-// the client validates/cleans it. Cap targets at the Developer-tier concurrency limit.
+// One planned target. Shaped for OpenAI STRICT structured outputs: every field must be
+// present in `required`, so "optional" fields are required-but-nullable (not .optional()),
+// and unsupported keywords (minLength / minItems) are omitted — count clamping + empty
+// filtering happen in code. `startUrl` is a plain string (not z.url()): the LLM sometimes
+// emits a bare domain, and one bad URL must not fail the whole plan; the worker cleans it.
 export const PlanTargetSchema = z.object({
-  label: z.string().min(1),
-  startUrl: z.string().optional(),
-  query: z.string().optional(),
-  goal: z.string().min(1),
-  extract: z.string().min(1),
-  engine: z.enum(["stagehand", "bb-agent"]).optional(),
+  label: z.string(),
+  startUrl: z.string().nullable(),
+  query: z.string().nullable(),
+  goal: z.string(),
+  extract: z.string(),
+  engine: z.enum(["stagehand", "bb-agent"]).nullable(),
 });
 
 export const PlanOutputSchema = z.object({
   title: z.string(),
-  targets: z.array(PlanTargetSchema).min(1).max(25),
+  targets: z.array(PlanTargetSchema),
 });
 
 export type PlanTarget = z.infer<typeof PlanTargetSchema>;

@@ -75,8 +75,14 @@ export async function POST(req: NextRequest) {
       prompt: `Task: ${task}`,
     });
 
-    // No silent caps: if the model over-plans, trim and say so.
-    let targets = output.targets;
+    // Drop empties (strict-mode schema can't enforce non-empty), then cap. No silent caps.
+    let targets = output.targets.filter((t) => t.goal.trim() && t.extract.trim());
+    if (targets.length === 0) {
+      return Response.json(
+        { error: "The planner produced no runnable targets for that task.", code: "PLAN_EMPTY" },
+        { status: 422 },
+      );
+    }
     if (targets.length > MAX_TARGETS) {
       console.warn(`[plan] clamped ${targets.length} -> ${MAX_TARGETS} targets`);
       targets = targets.slice(0, MAX_TARGETS);
