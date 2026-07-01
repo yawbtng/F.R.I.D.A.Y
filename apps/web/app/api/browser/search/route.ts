@@ -14,7 +14,10 @@ function getExa(): Exa {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip)) {
+  // 120 to match the other swarm fan-out routes: rate-limit.ts uses ONE shared per-IP
+  // counter across all routes, so on the default 30 bucket this would be rejected mid-run
+  // once agent/extract push the shared count past 30 (search is called per target for discovery).
+  if (!rateLimit(ip, 120)) {
     return Response.json(
       { error: "Too many requests", code: "RATE_LIMITED" },
       { status: 429 }

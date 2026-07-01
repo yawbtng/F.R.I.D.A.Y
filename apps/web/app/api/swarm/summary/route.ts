@@ -10,14 +10,19 @@ import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
+// Accepts the general shape { task, results:[{label,status,result,ms}] } and the legacy
+// KYB shape { entity, results:[{state,name,status,ms}] } so any caller works.
 const SummarySchema = z.object({
-  entity: z.string().min(1),
+  task: z.string().optional(),
+  entity: z.string().optional(),
   results: z
     .array(
       z.object({
-        state: z.string(),
+        label: z.string().optional(),
+        state: z.string().optional(),
         name: z.string().optional(),
         status: z.string(),
+        result: z.string().optional(),
         ms: z.number().optional(),
       }),
     )
@@ -43,13 +48,15 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { entity, results } = parsed.data;
+  const { results } = parsed.data;
+  const subject = parsed.data.task || parsed.data.entity || "the requested task";
 
   const rows = results
-    .map(
-      (r) =>
-        `- ${r.name ?? r.state} (${r.state}): ${r.status}${r.ms ? ` [${(r.ms / 1000).toFixed(0)}s]` : ""}`,
-    )
+    .map((r) => {
+      const label = r.label ?? r.name ?? r.state ?? "?";
+      const answer = r.result ? ` -> ${r.result}` : "";
+      return `- ${label}: ${r.status}${answer}${r.ms ? ` [${(r.ms / 1000).toFixed(0)}s]` : ""}`;
+    })
     .join("\n");
 
   // Pre-compute counts so the model never has to do arithmetic (LLMs miscount).
@@ -62,22 +69,21 @@ export async function POST(req: NextRequest) {
     .join(", ");
 
   const prompt =
-    `You are a KYB (know-your-business) analyst. A swarm of cloud browsers just checked the ` +
-    `registration status of "${entity}" across ${results.length} U.S. state Secretary-of-State business ` +
-    `registries, in parallel. Per-state results:\n\n${rows}\n\n` +
-    `Authoritative counts (use these EXACTLY, do not recount): ${countsLine}. Total checked: ${results.length}.\n\n` +
-    `Status meanings: active = registered, in good standing; inactive = dissolved/revoked/expired (worth ` +
-    `attention); notfound = no matching record on that state's registry; blocked = the state's portal blocked ` +
-    `automated access (CAPTCHA/anti-bot) so it could not be checked — a portal limitation, NOT a red flag for ` +
-    `the entity; error = the check itself failed.\n\n` +
+    `A swarm of cloud browsers just ran this task in parallel across ${results.length} targets:\n` +
+    `"${subject}"\n\n` +
+    `Per-target results (status, then the extracted answer):\n\n${rows}\n\n` +
+    `Authoritative counts (use these EXACTLY, do not recount): ${countsLine}. Total: ${results.length}.\n\n` +
+    `Status meanings: done = target completed and returned the answer shown; active = registered / in good ` +
+    `standing; inactive = dissolved / revoked / expired (worth attention); notfound = no matching record; ` +
+    `blocked = the site blocked automated access (CAPTCHA/anti-bot) so it could not be read — a portal ` +
+    `limitation, NOT a red flag; error = the check itself failed.\n\n` +
     `Write a concise report in PLAIN TEXT (no markdown symbols — no #, *, or backticks). Use short labeled ` +
     `sections separated by blank lines:\n` +
-    `HEADLINE: one sentence with the overall finding (how many states confirm it active).\n` +
-    `BREAKDOWN: counts per status; list the states in each non-active group.\n` +
-    `NOTES: flag any inactive/dissolved results (these matter), note which states blocked automation, and any ` +
-    `anomalies.\n` +
-    `TAKEAWAY: one-line bottom line for someone vetting this business.\n` +
-    `Under 180 words. Be precise; never invent states not in the data.`;
+    `HEADLINE: one sentence with the overall finding.\n` +
+    `BREAKDOWN: counts per status; call out the notable targets and their answers.\n` +
+    `NOTES: flag anything needing attention (inactive/dissolved, blocked portals, errors) and any anomalies.\n` +
+    `TAKEAWAY: one-line bottom line for whoever asked.\n` +
+    `Under 180 words. Be precise; never invent targets not in the data.`;
 
   try {
     const { text } = await generateText({
