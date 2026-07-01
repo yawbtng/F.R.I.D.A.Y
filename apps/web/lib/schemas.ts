@@ -56,3 +56,28 @@ export const AgentSchema = z.object({
   startUrl: z.string().url("startUrl must be a valid URL").optional(),
   maxSteps: z.number().int().min(1).max(50).optional(),
 });
+
+// Planner: a free-form task the LLM turns into a list of swarm targets.
+export const PlanRequestSchema = z.object({
+  task: z.string().min(1, "Task cannot be empty").max(2000),
+});
+
+// One planned target. `startUrl` is intentionally NOT z.url() — the LLM occasionally
+// emits a bare domain or a stray value, and one bad URL must not fail the whole plan;
+// the client validates/cleans it. Cap targets at the Developer-tier concurrency limit.
+export const PlanTargetSchema = z.object({
+  label: z.string().min(1),
+  startUrl: z.string().optional(),
+  query: z.string().optional(),
+  goal: z.string().min(1),
+  extract: z.string().min(1),
+  engine: z.enum(["stagehand", "bb-agent"]).optional(),
+});
+
+export const PlanOutputSchema = z.object({
+  title: z.string(),
+  targets: z.array(PlanTargetSchema).min(1).max(25),
+});
+
+export type PlanTarget = z.infer<typeof PlanTargetSchema>;
+export type PlanOutput = z.infer<typeof PlanOutputSchema>;

@@ -22,9 +22,11 @@ export const STATUS_META: Record<TileState, StatusMeta> = {
   notfound: { label: 'Not found', dot: 'bg-amber-400', ring: 'ring-amber-400/50', text: 'text-amber-300' },
   blocked: { label: 'Blocked', dot: 'bg-orange-400', ring: 'ring-orange-400/50', text: 'text-orange-300' },
   error: { label: 'Error', dot: 'bg-red-500', ring: 'ring-red-500/60', text: 'text-red-400' },
+  // Generic (non-KYB) success. Teal, distinct from KYB's emerald "active".
+  done: { label: 'Done', dot: 'bg-teal-400', ring: 'ring-teal-400/60', text: 'text-teal-300' },
 };
 
-const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'blocked', 'error'];
+const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'blocked', 'error', 'done'];
 
 export function hostOf(url: string): string {
   try {
