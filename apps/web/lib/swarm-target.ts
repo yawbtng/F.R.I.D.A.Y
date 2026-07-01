@@ -12,6 +12,7 @@ import {
   mapStatus,
   isBlocked,
 } from "./sos-adapters";
+import type { PlanTarget } from "./schemas";
 
 export interface SwarmTarget {
   /** Stable tile key (state code, or a label slug / index for general tasks). */
@@ -30,6 +31,23 @@ export interface SwarmTarget {
   engine?: "stagehand" | "bb-agent";
   /** KYB-only classifier (mapStatus). Absent → generic done/blocked/error classification. */
   classify?: (data: unknown) => WorkerStatus;
+}
+
+const slug = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "target";
+
+/** Map planner output (PlanTarget[]) into runnable SwarmTargets, assigning stable ids.
+ *  Used by both the /swarm review UI and the verify-plan harness. */
+export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
+  return planTargets.map((pt, i) => ({
+    id: `t${i}-${slug(pt.label)}`,
+    label: pt.label,
+    startUrl: pt.startUrl,
+    query: pt.query,
+    goal: pt.goal,
+    extract: pt.extract,
+    engine: pt.engine,
+  }));
 }
 
 /** KYB preset: the proven path, no LLM. Builds one target per state from the curated
