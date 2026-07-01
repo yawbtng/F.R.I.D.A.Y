@@ -46,13 +46,15 @@ interface GridTileProps {
   screenshotUrl?: string;
   /** Extracted answer to surface on the tile (e.g. "Active", "$799"). */
   result?: string;
+  /** Transient worker note shown while working (e.g. "searching", "retrying"). */
+  note?: string;
   status: TileState;
   ms?: number;
   /** Click anywhere on the live view to focus this browser. */
   onClick?: () => void;
 }
 
-export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, status, ms, onClick }: GridTileProps) {
+export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, note, status, ms, onClick }: GridTileProps) {
   const m = STATUS_META[status];
   const working = status === 'working';
 
@@ -120,6 +122,12 @@ export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, statu
         )}
         {/* Keep queued tiles calm until their worker fires */}
         {status === 'idle' && <div className="absolute inset-0 bg-friday-bg/50" />}
+        {/* Live worker note (searching / retrying) so agency is visible on camera */}
+        {working && note && (
+          <div className="absolute top-1.5 left-1.5 z-20 px-1.5 py-0.5 rounded bg-friday-accent/20 backdrop-blur-sm text-[10px] font-medium text-friday-accent ring-1 ring-friday-accent/40 pointer-events-none">
+            ↻ {note}
+          </div>
+        )}
         {/* Extracted answer, surfaced on the tile once resolved (e.g. "Active", "$799"). */}
         {result && RESOLVED.includes(status) && (
           <div className={`absolute bottom-1.5 left-1.5 z-20 max-w-[70%] px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[10px] font-medium truncate pointer-events-none ${m.text}`} title={result}>

@@ -16,6 +16,8 @@ export interface Tile {
   liveViewUrl: string;
   screenshotUrl?: string;
   result?: string;
+  /** Transient worker note shown while working (e.g. "searching", "retrying"). */
+  note?: string;
   status: TileState;
   ms?: number;
 }
@@ -31,6 +33,7 @@ export function SwarmGrid({ tiles, onSelect }: { tiles: Tile[]; onSelect?: (t: T
           liveViewUrl={t.liveViewUrl}
           screenshotUrl={t.screenshotUrl}
           result={t.result}
+          note={t.note}
           status={t.status}
           ms={t.ms}
           onClick={onSelect ? () => onSelect(t) : undefined}

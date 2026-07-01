@@ -67,15 +67,21 @@ export function buildKybTargets(entity: string, states: string[]): SwarmTarget[]
 }
 
 /** Coerce stagehand.extract output (string or object) into a short display string. Mirrors
- *  the field-picking in mapStatus so an answer surfaces regardless of the extract's shape. */
+ *  the field-picking in mapStatus so an answer surfaces regardless of the extract's shape.
+ *  An explicit null on the primary answer field means "no answer" -> empty string (so a tile
+ *  never shows the literal "null" the agent returned when it couldn't find the value). */
 export function toResultText(data: unknown): string {
   if (data == null) return "";
   if (typeof data === "string") return data.trim();
   if (typeof data === "object") {
     const d = data as Record<string, unknown>;
-    const pick =
-      d.answer ?? d.result ?? d.value ?? d.status ?? d.standing ?? d.message ?? d.extraction;
-    if (pick != null && typeof pick !== "object") return String(pick).trim();
+    for (const k of ["answer", "result", "value", "status", "standing", "message", "extraction"]) {
+      if (k in d) {
+        const v = d[k];
+        if (v === null) return ""; // agent explicitly reported no value
+        if (v !== undefined && typeof v !== "object") return String(v).trim();
+      }
+    }
     try {
       return JSON.stringify(data);
     } catch {
@@ -85,11 +91,23 @@ export function toResultText(data: unknown): string {
   return String(data);
 }
 
+/** True when an extracted answer is effectively empty: blank, or a null/none/unknown token
+ *  the agent returns when it couldn't find the value. Such a tile should read "not found",
+ *  not "done", and is a candidate for the agency retry. */
+export function isEmptyAnswer(s: string): boolean {
+  return (
+    !s.trim() ||
+    /^(null|none|n\/?a|unknown|undefined|not\s?found|no\s+(result|answer|data|record|match)s?)$/i.test(
+      s.trim(),
+    )
+  );
+}
+
 /** Generic (non-KYB) classification: the extracted value IS the answer. A target is "done"
- *  if we read something and weren't blocked; "blocked" if the page fought us; "notfound"
- *  if nothing came back. Errors/timeouts are handled by the caller (runTarget). */
+ *  if we read a real value and weren't blocked; "blocked" if the page fought us; "notfound"
+ *  if nothing usable came back. Errors/timeouts are handled by the caller (runTarget). */
 export function classifyGeneric(data: unknown): { status: WorkerStatus; result: string } {
   const result = toResultText(data);
-  if (!result) return { status: "notfound", result };
+  if (isEmptyAnswer(result)) return { status: "notfound", result: "" };
   return { status: isBlocked(result) ? "blocked" : "done", result };
 }

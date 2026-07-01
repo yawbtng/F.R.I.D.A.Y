@@ -26,7 +26,8 @@ const UNRESOLVED: TileState[] = ['notfound', 'blocked', 'error'];
 
 // The worker itself lives in lib/run-target (isomorphic, shared with the verify-plan harness).
 // The hook drives it in-browser with base "" (relative fetch).
-const drive = (b: RunSession, target: SwarmTarget) => runTarget('', b, target);
+const drive = (b: RunSession, target: SwarmTarget, onProgress?: (note: string) => void) =>
+  runTarget('', b, target, onProgress);
 
 /** Release one cloud session immediately so it stops billing. */
 function releaseOne(b: SpawnedBrowser) {
@@ -130,7 +131,7 @@ export function useSwarm() {
             let status: TileState = 'error';
             let result: string | undefined;
             try {
-              const r = await drive(browsers[i], tgt);
+              const r = await drive(browsers[i], tgt, (note) => updateTile(i, { note }));
               status = r.status;
               result = r.result;
               if (r.url) updateTile(i, { url: r.url });
@@ -139,7 +140,7 @@ export function useSwarm() {
             }
             // Freeze the final frame, then release the session so it stops billing.
             const screenshotUrl = await captureFrame(browsers[i]);
-            updateTile(i, { status, result, ms: Date.now() - t0, screenshotUrl });
+            updateTile(i, { status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
             releaseOne(browsers[i]);
           }),
         );
@@ -192,7 +193,7 @@ export function useSwarm() {
           let status: TileState = 'error';
           let result: string | undefined;
           try {
-            const r = await drive(browsers[k], tgt);
+            const r = await drive(browsers[k], tgt, (note) => updateTile(i, { note }));
             status = r.status;
             result = r.result;
             if (r.url) updateTile(i, { url: r.url });
@@ -200,7 +201,7 @@ export function useSwarm() {
             status = 'error';
           }
           const screenshotUrl = await captureFrame(browsers[k]);
-          updateTile(i, { status, result, ms: Date.now() - t0, screenshotUrl });
+          updateTile(i, { status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
           releaseOne(browsers[k]);
         }),
       );
