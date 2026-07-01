@@ -8,8 +8,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Tile, TileState } from '@/components/swarm-grid';
-import type { WorkerStatus } from '@/lib/sos-adapters';
-import { type SwarmTarget, toResultText, classifyGeneric } from '@/lib/swarm-target';
+import type { SwarmTarget } from '@/lib/swarm-target';
+import { runTarget, isHttpUrl, type RunSession } from '@/lib/run-target';
 
 export interface SpawnedBrowser {
   browserId: string;
@@ -24,68 +24,9 @@ export type SwarmPhase = 'idle' | 'spawning' | 'running' | 'done';
  *  (done / active / inactive are settled answers and are left alone.) */
 const UNRESOLVED: TileState[] = ['notfound', 'blocked', 'error'];
 
-const isHttpUrl = (u?: string): u is string => !!u && /^https?:\/\//i.test(u);
-
-/** Drive one browser toward a target: resolve a start URL (its own, else discover via Exa),
- *  run the agent toward the goal, extract the answer. `engine` defaults to the cheap Stagehand
- *  path; 'bb-agent' (Browserbase Agents escalation) is wired in a later change. */
-async function runTarget(
-  b: SpawnedBrowser,
-  target: SwarmTarget,
-): Promise<{ status: WorkerStatus; result: string; url?: string }> {
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${b.token}` };
-  const signal = AbortSignal.timeout(95_000); // don't let a stuck portal spin forever
-
-  let startUrl = isHttpUrl(target.startUrl) ? target.startUrl : undefined;
-  if (!startUrl && target.query) {
-    // Discover the page when the planner only gave a search query. Best-effort.
-    try {
-      const sres = await fetch('/api/browser/search', {
-        method: 'POST',
-        headers,
-        signal,
-        body: JSON.stringify({ sessionId: b.sessionId, query: target.query }),
-      });
-      if (sres.ok) {
-        const { results } = (await sres.json()) as { results?: Array<{ url: string }> };
-        if (isHttpUrl(results?.[0]?.url)) startUrl = results![0].url;
-      }
-    } catch {
-      /* discovery is best-effort; the agent still runs */
-    }
-  }
-
-  const agentRes = await fetch('/api/browser/agent', {
-    method: 'POST',
-    headers,
-    signal,
-    body: JSON.stringify({
-      sessionId: b.sessionId,
-      ...(startUrl ? { startUrl } : {}),
-      instruction: target.goal,
-      maxSteps: 25,
-    }),
-  });
-  if (!agentRes.ok) {
-    throw new Error((await agentRes.json().catch(() => ({}))).error || `agent HTTP ${agentRes.status}`);
-  }
-
-  const exRes = await fetch('/api/browser/extract', {
-    method: 'POST',
-    headers,
-    signal,
-    body: JSON.stringify({ sessionId: b.sessionId, instruction: target.extract }),
-  });
-  if (!exRes.ok) {
-    throw new Error((await exRes.json().catch(() => ({}))).error || `extract HTTP ${exRes.status}`);
-  }
-  const data = (await exRes.json()).data;
-
-  // KYB targets carry a classifier (mapStatus); general targets classify generically.
-  if (target.classify) return { status: target.classify(data), result: toResultText(data), url: startUrl };
-  const g = classifyGeneric(data);
-  return { status: g.status, result: g.result, url: startUrl };
-}
+// The worker itself lives in lib/run-target (isomorphic, shared with the verify-plan harness).
+// The hook drives it in-browser with base "" (relative fetch).
+const drive = (b: RunSession, target: SwarmTarget) => runTarget('', b, target);
 
 /** Release one cloud session immediately so it stops billing. */
 function releaseOne(b: SpawnedBrowser) {
@@ -189,7 +130,7 @@ export function useSwarm() {
             let status: TileState = 'error';
             let result: string | undefined;
             try {
-              const r = await runTarget(browsers[i], tgt);
+              const r = await drive(browsers[i], tgt);
               status = r.status;
               result = r.result;
               if (r.url) updateTile(i, { url: r.url });
@@ -251,7 +192,7 @@ export function useSwarm() {
           let status: TileState = 'error';
           let result: string | undefined;
           try {
-            const r = await runTarget(browsers[k], tgt);
+            const r = await drive(browsers[k], tgt);
             status = r.status;
             result = r.result;
             if (r.url) updateTile(i, { url: r.url });
