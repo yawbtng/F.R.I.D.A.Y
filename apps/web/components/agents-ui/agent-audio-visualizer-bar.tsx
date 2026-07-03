@@ -10,12 +10,7 @@ import React, {
   useMemo,
 } from 'react';
 import { type VariantProps, cva } from 'class-variance-authority';
-import { type LocalAudioTrack, type RemoteAudioTrack } from 'livekit-client';
-import {
-  type AgentState,
-  type TrackReferenceOrPlaceholder,
-  useMultibandTrackVolume,
-} from '@livekit/components-react';
+import { type VoiceState } from '@/lib/voice-state';
 import { useAgentAudioVisualizerBarAnimator } from '@/hooks/agents-ui/use-agent-audio-visualizer-bar';
 import { cn } from '@/lib/utils';
 
@@ -92,7 +87,7 @@ export interface AgentAudioVisualizerBarProps {
    * The current state of the agent. Determines the animation pattern.
    * @defaultValue 'connecting'
    */
-  state?: AgentState;
+  state?: VoiceState;
   /**
    * The color of the bars in hexidecimal format.
    */
@@ -105,7 +100,7 @@ export interface AgentAudioVisualizerBarProps {
   /**
    * The audio track to visualize. Can be a local/remote audio track or a track reference.
    */
-  audioTrack?: LocalAudioTrack | RemoteAudioTrack | TrackReferenceOrPlaceholder;
+  audioTrack?: unknown;
   /**
    * Additional CSS class names to apply to the container.
    */
@@ -159,11 +154,7 @@ export function AgentAudioVisualizerBar({
     }
   }, [barCount, size]);
 
-  const volumeBands = useMultibandTrackVolume(audioTrack, {
-    bands: _barCount,
-    loPass: 100,
-    hiPass: 200,
-  });
+  const volumeBands = new Array(_barCount).fill(0);
 
   const sequencerInterval = useMemo(() => {
     switch (state) {

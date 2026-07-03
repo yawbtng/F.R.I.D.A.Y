@@ -13,7 +13,6 @@
     "@ai-sdk/openai": "^4.0.7",
     "@ai-sdk/react": "^4.0.15",
     "@browserbasehq/stagehand": "^3.6.0",
-    "@livekit/components-react": "^2.9.20",
     "ai": "^7.0.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -23,8 +22,6 @@
     "geist": "^1.7.0",
     "hls.js": "^1.6.16",
     "jose": "^6",
-    "livekit-client": "^2.17.2",
-    "livekit-server-sdk": "^2",
     "lucide-react": "^0.577.0",
     "motion": "^12.35.0",
     "next": "^15.5.12",
@@ -35,7 +32,6 @@
     "zod": "^3"
   },
   "devDependencies": {
-    "@livekit/components-styles": "^1.2.0",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
