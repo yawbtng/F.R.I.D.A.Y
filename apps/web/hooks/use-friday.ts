@@ -4,7 +4,7 @@
 // dispatch table + plan state. This is the single seam the unified command-center consumes,
 // so page components stay thin. Voice tool calls flow in here; swarm state flows back out.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useVoice } from "./use-voice";
 import { useSwarm } from "./use-swarm";
 import { planToTargets, type SwarmTarget } from "@/lib/swarm-target";
@@ -99,6 +99,55 @@ export function useFriday() {
   }, []);
 
   const voice = useVoice({ instructions: FRIDAY_INSTRUCTIONS, onToolCall: dispatch });
+
+  // M3 progress bridge: narrate the run as tiles come back. Coalesced (~every 6s, only on real
+  // progress) and turn-aware (never while the user is speaking) so it doesn't spam or talk over
+  // them. Injects short [status] notes the persona knows to narrate. The swarm and voice sessions
+  // share this browser, so no server polling is needed — this reads live state directly.
+  // NOTE: the exact conversational feel (interruption, cadence) needs live tuning with a mic.
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
+  const lastSettledRef = useRef(0);
+  const lastAnnounceRef = useRef(0);
+  const doneAnnouncedRef = useRef(false);
+
+  useEffect(() => {
+    if (voice.status !== "connected") return;
+    const tiles = swarm.tiles;
+
+    if (swarm.phase === "idle" || swarm.phase === "spawning") {
+      lastSettledRef.current = 0;
+      lastAnnounceRef.current = 0;
+      doneAnnouncedRef.current = false;
+      return;
+    }
+    if (tiles.length === 0) return;
+
+    const settled = tiles.filter((t) => t.status !== "idle" && t.status !== "working").length;
+
+    if (swarm.phase === "running") {
+      const now = Date.now();
+      const progressed = settled > lastSettledRef.current;
+      const enoughTimePassed = now - lastAnnounceRef.current > 6000;
+      const userQuiet = voice.voiceState !== "listening";
+      if (progressed && enoughTimePassed && userQuiet) {
+        lastSettledRef.current = settled;
+        lastAnnounceRef.current = now;
+        const blocked = tiles.filter((t) => t.status === "blocked").map((t) => t.label);
+        voiceRef.current.sendTextMessage(
+          `[status] ${settled} of ${tiles.length} done so far${
+            blocked.length ? `; blocked: ${blocked.join(", ")}` : ""
+          }.`,
+        );
+      }
+    } else if (swarm.phase === "done" && !doneAnnouncedRef.current) {
+      doneAnnouncedRef.current = true;
+      const resolved = tiles.filter((t) => ["done", "active", "inactive"].includes(t.status)).length;
+      voiceRef.current.sendTextMessage(
+        `[status] Swarm finished: ${resolved} of ${tiles.length} resolved. Summarize the findings for the user.`,
+      );
+    }
+  }, [swarm.tiles, swarm.phase, voice.status, voice.voiceState]);
 
   const resetAll = useCallback(() => {
     swarmRef.current.reset();
