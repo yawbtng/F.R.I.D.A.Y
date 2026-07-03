@@ -75,6 +75,7 @@ export function useSwarm() {
   const tilesRef = useRef<Tile[]>([]);
   tilesRef.current = tiles; // always-latest snapshot for the report generator
   const autoReportRef = useRef(false); // auto-open the report once per run
+  const cancelledRef = useRef(false); // set by cancel()/reset() to halt the in-flight run
 
   // Release the fleet if the consumer unmounts mid-run.
   useEffect(() => () => releaseFleet(fleetRef.current), []);
@@ -99,6 +100,7 @@ export function useSwarm() {
       if (opts?.task != null) taskRef.current = opts.task;
 
       setError('');
+      cancelledRef.current = false;
       setPhase('spawning');
       try {
         const res = await fetch('/api/fleet', {
@@ -150,6 +152,7 @@ export function useSwarm() {
         );
 
         setElapsed((Date.now() - runStart) / 1000);
+        if (cancelledRef.current) { setPhase('idle'); return; }
         setPhase('done');
       } catch (e) {
         setError(e instanceof Error ? e.message : 'run failed');
@@ -264,7 +267,25 @@ export function useSwarm() {
     if (phase === 'idle') autoReportRef.current = false;
   }, [phase, generateReport]);
 
+  // Halt the in-flight run: release the fleet now (so pending agent/extract calls fail fast),
+  // mark still-working tiles as stopped, and drop back to idle. Barge-in "stop" calls this.
+  const cancel = useCallback(() => {
+    cancelledRef.current = true;
+    releaseFleet(fleetRef.current);
+    fleetRef.current = [];
+    setRetrying(false);
+    setTiles((prev) =>
+      prev.map((t) =>
+        t.status === 'working' || t.status === 'idle'
+          ? { ...t, status: 'error' as TileState, result: 'stopped', note: undefined }
+          : t,
+      ),
+    );
+    setPhase('idle');
+  }, []);
+
   const reset = useCallback(() => {
+    cancelledRef.current = true;
     releaseFleet(fleetRef.current);
     fleetRef.current = [];
     targetsRef.current = [];
@@ -293,6 +314,7 @@ export function useSwarm() {
     closeReport: () => setReportOpen(false),
     regenerateReport: generateReport,
     run,
+    cancel,
     retryWithStealth,
     reset,
     setError,
