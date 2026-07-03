@@ -92,7 +92,7 @@ export function Hero() {
             className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row"
           >
             <Link
-              href="/workspace"
+              href="/friday"
               className="focus-ring rounded-full bg-friday-accent/90 px-10 py-4 text-base font-semibold text-white shadow-glow transition-all duration-200 hover:bg-friday-accent-hover hover:shadow-[0_0_30px_var(--accent-glow)]"
             >
               Try Friday &rarr;

@@ -29,24 +29,35 @@ export function useFriday() {
   titleRef.current = planTitle;
   const runSeq = useRef(0);
 
+  // Shared planning path — used by both the planTask voice tool and the manual text box (DRY).
+  const planFromTask = useCallback(async (task: string) => {
+    const res = await fetch("/api/swarm/plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "planning failed");
+    const targets = planToTargets((data.targets ?? []) as PlanTarget[]);
+    setPlan(targets);
+    const title = typeof data.title === "string" ? data.title : "";
+    setPlanTitle(title);
+    setPlanNotes(Array.isArray(data.planNotes) ? (data.planNotes as string[]) : []);
+    return { title, targets };
+  }, []);
+
   const dispatch = useCallback(async (toolName: string, args: unknown) => {
     const s = swarmRef.current;
     switch (toolName) {
       case "planTask": {
         const { task } = (args ?? {}) as { task?: string };
         if (!task) return { error: "no task provided" };
-        const res = await fetch("/api/swarm/plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ task }),
-        });
-        const data = await res.json();
-        if (!res.ok) return { error: data.error || "planning failed" };
-        const targets = planToTargets((data.targets ?? []) as PlanTarget[]);
-        setPlan(targets);
-        setPlanTitle(data.title ?? "");
-        setPlanNotes(Array.isArray(data.planNotes) ? data.planNotes : []);
-        return planSummary(data.title ?? "", targets);
+        try {
+          const { title, targets } = await planFromTask(task);
+          return planSummary(title, targets);
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : "planning failed" };
+        }
       }
 
       case "updatePlan": {
@@ -96,7 +107,7 @@ export function useFriday() {
       default:
         return { error: `unknown tool ${toolName}` };
     }
-  }, []);
+  }, [planFromTask]);
 
   const voice = useVoice({ instructions: FRIDAY_INSTRUCTIONS, onToolCall: dispatch });
 
@@ -161,6 +172,8 @@ export function useFriday() {
     ...swarm,
     voice,
     plan,
+    setPlan,
+    manualPlan: planFromTask,
     planTitle,
     planNotes,
     focusedId,

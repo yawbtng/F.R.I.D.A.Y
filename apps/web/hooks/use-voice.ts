@@ -9,6 +9,7 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { experimental_useRealtime } from "@ai-sdk/react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { UIMessage } from "ai";
 import type { VoiceState } from "@/lib/voice-state";
 
 const REALTIME_MODEL = "openai/gpt-realtime";
@@ -31,6 +32,8 @@ export interface UseVoiceOptions {
 export interface UseVoiceReturn {
   status: "disconnected" | "connecting" | "connected" | "error";
   voiceState: VoiceState;
+  /** Conversation turns (user + assistant) for the transcript panel. */
+  messages: UIMessage[];
   connect: () => Promise<void>;
   disconnect: () => void;
   /** Submit a deferred tool result (for tools whose onToolCall returned undefined). */
@@ -110,6 +113,7 @@ export function useVoice({
   return {
     status: rt.status,
     voiceState,
+    messages: rt.messages,
     connect,
     disconnect,
     addToolOutput: rt.addToolOutput,
