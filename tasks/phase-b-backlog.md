@@ -30,6 +30,10 @@ plan doc). Nothing here blocks the demo; everything here is a real feature we in
   Outbound → confirm-gated. Size: S (export) / M (send).
 - **Talk to the artifact (`queryReport`)** — voice follow-up answered from the finished results
   (RAG over our own report), agent highlights the row/source. Genre-first closer. Size: M–L.
+- **Agent-drawn diagrams (Mermaid)** — let the agent render a Mermaid diagram on-demand when a
+  diagram genuinely helps (a general-Jarvis capability, not the KYB report — the status chart
+  covers that). Needs the `mermaid` lib + a dynamic client-only renderer (SSR gotchas). Deferred
+  2026-07-04; the status proportion bar is the report's core visual. Size: M.
 
 ### Browser act/write superpowers (the "operator" jump)
 - **Form fill + submit** — apply, sign up, contact, book. Confirm-gated. Size: M.

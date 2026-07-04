@@ -75,21 +75,6 @@ export const realtimeTools = {
       idOrLabel: z.string().describe("The target id or label to focus, e.g. 'Acme Corp'."),
     }),
   }),
-
-  chartFromData: tool({
-    description:
-      "Render a chart of the results into the report artifact — e.g. a pass/fail breakdown across the targets.",
-    inputSchema: z.object({
-      kind: z.enum(["status-donut", "status-bars"]).describe("Chart type to render."),
-    }),
-  }),
-
-  mermaidDiagram: tool({
-    description: "Render a Mermaid diagram (e.g. the plan/flow) into the report artifact.",
-    inputSchema: z.object({
-      spec: z.string().describe("Mermaid diagram source text."),
-    }),
-  }),
 };
 
 /** The tool names the client dispatch table must handle. */

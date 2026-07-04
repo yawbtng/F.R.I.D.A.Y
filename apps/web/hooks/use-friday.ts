@@ -99,11 +99,6 @@ export function useFriday() {
         return { focused: tile.label };
       }
 
-      // Report visuals land in M5; acknowledge so the agent doesn't stall.
-      case "chartFromData":
-      case "mermaidDiagram":
-        return { status: "queued", note: "renders into the report artifact" };
-
       default:
         return { error: `unknown tool ${toolName}` };
     }
