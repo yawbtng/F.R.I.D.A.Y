@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommandCenter } from './command-center';
 import { SessionSidebar } from './session-sidebar';
@@ -39,6 +39,10 @@ interface FridayShellProps {
   onNewSession?: () => void;
   /** Whether a session is being created */
   sessionCreating?: boolean;
+  /** Optional override for the center column (Phase B swarm command-center). */
+  center?: ReactNode;
+  /** Optional extra content for the top-bar right side (e.g. swarm scoreboard + buttons). */
+  headerRight?: ReactNode;
 }
 
 // Real SessionSidebar and MissionLog are imported above from their own files.
@@ -75,14 +79,15 @@ export function FridayShell(props: FridayShellProps) {
           </div>
         </div>
 
-        {/* Right — status indicator */}
-        <div className="flex items-center gap-2">
+        {/* Right — status indicator + optional swarm controls */}
+        <div className="flex items-center gap-3">
           {props.sessionId && (
             <div className="flex items-center gap-1.5 text-xs text-friday-text-tertiary font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-friday-active" />
               Active
             </div>
           )}
+          {props.headerRight}
         </div>
       </header>
 
@@ -125,22 +130,24 @@ export function FridayShell(props: FridayShellProps) {
           )}
         </AnimatePresence>
 
-        {/* Center — Command Center */}
+        {/* Center — swarm command-center (Phase B) or the default single-browser CommandCenter */}
         <div className="flex-1 min-w-0">
-          <CommandCenter
-            sessionActive={props.sessionActive}
-            screenshotUrl={props.screenshotUrl}
-            iframeSrc={props.iframeSrc}
-            currentUrl={props.currentUrl}
-            sessionId={props.sessionId}
-            isLoading={props.isLoading}
-            orbState={props.orbState}
-            audioLevel={props.audioLevel}
-            waveformData={props.waveformData}
-            onTextCommand={props.onTextCommand}
-            onMicToggle={props.onMicToggle}
-            micActive={props.micActive}
-          />
+          {props.center ?? (
+            <CommandCenter
+              sessionActive={props.sessionActive}
+              screenshotUrl={props.screenshotUrl}
+              iframeSrc={props.iframeSrc}
+              currentUrl={props.currentUrl}
+              sessionId={props.sessionId}
+              isLoading={props.isLoading}
+              orbState={props.orbState}
+              audioLevel={props.audioLevel}
+              waveformData={props.waveformData}
+              onTextCommand={props.onTextCommand}
+              onMicToggle={props.onMicToggle}
+              micActive={props.micActive}
+            />
+          )}
         </div>
 
         {/* Right — Mission Log (hidden on mobile) */}
