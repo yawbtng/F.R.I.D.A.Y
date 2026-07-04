@@ -384,9 +384,9 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
         </p>
         <div className="space-y-1.5">
           {[
-            'Go to Hacker News',
-            'Click the top story',
-            'What does this page say?',
+            'Verify these are real businesses: Tesla, Apple, Stripe',
+            'Are these 12 vendors actually registered?',
+            'Check if these companies are active',
           ].map((cmd) => (
             <div
               key={cmd}
