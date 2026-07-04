@@ -22,8 +22,11 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const gateway = createGateway({ apiKey });
+  // This model id is embedded in the returned WS url, so it MUST be WS-available on the
+  // Gateway (not just REST-mintable). openai/gpt-realtime is REST-only and 400s the upgrade;
+  // gpt-realtime-mini works. Keep this default in sync with use-voice.ts.
   const { token, url, expiresAt } = await gateway.experimental_realtime.getToken({
-    model: process.env.REALTIME_MODEL || "openai/gpt-realtime",
+    model: process.env.REALTIME_MODEL || "openai/gpt-realtime-mini",
     expiresAfterSeconds: 60,
   });
 

@@ -12,7 +12,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { UIMessage } from "ai";
 import type { VoiceState } from "@/lib/voice-state";
 
-const REALTIME_MODEL = "openai/gpt-realtime";
+// MUST be a model the AI Gateway serves over WebSocket, not just REST. `openai/gpt-realtime`
+// and the gpt-4o-realtime-preview family mint tokens fine but 400 on the WS upgrade
+// ("not available over WebSocket") — the socket connects then dies in ~1s. gpt-realtime-mini
+// is WS-available. Re-check with scripts/verify-realtime-token.ts before changing this.
+const REALTIME_MODEL = "openai/gpt-realtime-mini";
 
 export interface UseVoiceOptions {
   /** System prompt / persona for the voice agent. */
