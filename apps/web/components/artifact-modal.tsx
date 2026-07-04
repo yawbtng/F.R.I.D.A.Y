@@ -22,6 +22,29 @@ const SYNTH_STEPS = [
 const metaFor = (status: string) =>
   STATUS_META[(status as TileState) in STATUS_META ? (status as TileState) : 'error'];
 
+/** At-a-glance chart: a segmented proportion bar of the per-status counts (colors from the
+ *  tile status palette). Deterministic from the report data — always renders, no dependency. */
+function StatusBar({ byStatus, total }: { byStatus: Record<string, number>; total: number }) {
+  const denom = total || 1;
+  const entries = Object.entries(byStatus).filter(([, n]) => n > 0);
+  if (entries.length === 0) return null;
+  return (
+    <div className="flex h-2.5 w-full overflow-hidden rounded-full ring-1 ring-white/10 bg-white/[0.04]">
+      {entries.map(([s, n]) => {
+        const m = metaFor(s);
+        return (
+          <div
+            key={s}
+            className={m.dot}
+            style={{ width: `${(n / denom) * 100}%` }}
+            title={`${n} ${m.label}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 /** Cycles through synthesis steps while the AI narrative is in flight. */
 function SynthLoader() {
   const [i, setI] = useState(0);
@@ -177,6 +200,9 @@ export function ArtifactModal({
               );
             })}
           </div>
+
+          {/* At-a-glance chart */}
+          <StatusBar byStatus={model.counts.byStatus} total={model.counts.total} />
 
           {/* AI headline (or synthesis loader) */}
           <div className="min-h-[1.25rem]">
