@@ -56,9 +56,6 @@ export default function FridayPage() {
     resetAll,
   } = useFriday();
 
-  const [taskDraft, setTaskDraft] = useState(
-    'Check whether these are active, registered businesses: Tesla, Apple, Stripe, OpenAI',
-  );
   const [planning, setPlanning] = useState(false);
   const [textInput, setTextInput] = useState('');
 
@@ -135,35 +132,16 @@ export default function FridayPage() {
         {phase === 'idle' && planning && <PlanningLoader />}
 
         {phase === 'idle' && !planning && plan.length === 0 && (
-          <div className="flex flex-col items-center gap-6 py-6">
+          <div className="flex h-full flex-col items-center justify-center gap-5 py-6 text-center">
             <AgentAudioVisualizerAura size="lg" state={voice.voiceState} color="#3B82F6" themeMode="dark" />
             <p className="text-sm text-friday-text-secondary">
               {voice.status === 'connected'
                 ? 'Listening… tell me what to check.'
                 : voice.status === 'connecting'
                   ? 'Connecting…'
-                  : 'Tap the mic to talk, or type a task below.'}
+                  : 'Tap the mic to talk, or type a task in the bar below.'}
             </p>
-            <div className="glass-heavy rounded-xl p-5 w-full max-w-xl">
-              <label className="block text-xs font-medium text-friday-text-secondary mb-1.5">
-                What should F.R.I.D.A.Y. check across the web?
-              </label>
-              <textarea
-                value={taskDraft}
-                onChange={(e) => setTaskDraft(e.target.value)}
-                rows={3}
-                placeholder="e.g. Check if these 12 vendors are real, registered businesses: …"
-                className="w-full resize-none rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm focus-ring placeholder:text-friday-text-tertiary"
-              />
-              {error && <p className="mt-3 text-xs text-red-400 font-mono">{error}</p>}
-              <button
-                onClick={() => doPlan(taskDraft)}
-                disabled={!taskDraft.trim()}
-                className="mt-4 rounded-lg bg-friday-accent/20 px-5 py-2.5 text-sm font-semibold text-friday-accent ring-1 ring-friday-accent/40 hover:bg-friday-accent/30 disabled:opacity-40 focus-ring"
-              >
-                Plan →
-              </button>
-            </div>
+            {error && <p className="text-xs text-red-400 font-mono">{error}</p>}
           </div>
         )}
 
@@ -171,7 +149,7 @@ export default function FridayPage() {
           <PlanReview
             targets={plan}
             onChange={setPlan}
-            onRun={() => run(plan, { task: planTitle || taskDraft.trim() || 'Swarm run' })}
+            onRun={() => run(plan, { task: planTitle || 'Swarm run' })}
             onBack={() => setPlan([])}
             error={error}
             title={planTitle}
@@ -303,7 +281,7 @@ export default function FridayPage() {
       <AnimatePresence>
         {reportOpen && (
           <ArtifactModal
-            task={planTitle || task || taskDraft}
+            task={planTitle || task || 'F.R.I.D.A.Y. run'}
             items={tiles}
             narrative={narrative}
             loading={reportLoading}
