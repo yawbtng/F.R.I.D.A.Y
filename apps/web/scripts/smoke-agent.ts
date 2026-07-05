@@ -27,7 +27,8 @@ async function main() {
         properties: { heading: { type: "string", description: "the h1 text on the page" } },
         required: ["heading"],
       },
-      browserSettings: { proxies: true },
+      // Proxies gated behind BB_PROXIES=1 — proxy bandwidth bills at $12/GB (off by default).
+      browserSettings: { proxies: process.env.BB_PROXIES === "1" },
     }),
   });
   const startText = await startRes.text();
