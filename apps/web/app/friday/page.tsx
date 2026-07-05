@@ -136,7 +136,7 @@ export default function FridayPage() {
 
         {phase === 'idle' && !planning && plan.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-5 py-6 text-center">
-            <AgentAudioVisualizerAura size="lg" state={orbState} color="#3B82F6" themeMode="dark" />
+            <AgentAudioVisualizerAura size="lg" state={orbState} color="#FF4500" themeMode="dark" />
             <p className="text-sm text-friday-text-secondary">
               {voice.status === 'connected'
                 ? 'Listening… tell me what to check.'
@@ -170,7 +170,7 @@ export default function FridayPage() {
         {(phase === 'running' || phase === 'done') && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <AgentAudioVisualizerAura size="sm" state={orbState} color="#3B82F6" themeMode="dark" />
+              <AgentAudioVisualizerAura size="sm" state={orbState} color="#FF4500" themeMode="dark" />
               <span className="font-mono text-[11px] uppercase tracking-wide text-friday-text-tertiary">
                 {voiceWord}
               </span>

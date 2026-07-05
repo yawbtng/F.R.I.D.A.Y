@@ -99,8 +99,8 @@ export function CommandCenter({
       >
         <AgentAudioVisualizerAura
           size={sessionActive ? 'sm' : 'lg'}
-          state={orbState === 'speaking' ? 'speaking' : orbState === 'listening' ? 'listening' : 'listening'}
-          color="#3B82F6"
+          state={orbState === 'speaking' ? 'speaking' : 'listening'}
+          color="#FF4500"
           themeMode="dark"
         />
       </motion.div>

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CommandCenter } from './command-center';
 import { SessionSidebar } from './session-sidebar';
 import { MissionLog } from './mission-log';
+import { ThemeToggle } from './theme-toggle';
 
 type OrbState = 'idle' | 'listening' | 'speaking';
 
@@ -92,6 +93,7 @@ export function FridayShell(props: FridayShellProps) {
             </div>
           )}
           {props.headerRight}
+          <ThemeToggle />
           <button
             onClick={() => setRightOpen((v) => !v)}
             className="hidden md:flex items-center justify-center w-8 h-8 rounded-md text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors duration-150 ease-out focus-ring"
