@@ -24,15 +24,16 @@ export async function createBrowserSession(opts?: { stealth?: boolean }): Promis
     // Route through Browserbase's Model Gateway: a plain provider/model slug billed via
     // the Browserbase API key (the top-level apiKey above). No provider key or baseURL.
     model: process.env.STAGEHAND_MODEL || "openai/gpt-4.1-mini",
-    // Stealth pass: residential proxies + auto CAPTCHA-solving, set at session creation
-    // (reattaches preserve it). Verified to clear anti-bot walls a naive session hits
-    // (OH security check, MI) and to expose ones mislabeled "notfound" (VA/CT) as real
-    // blocks. Some walls (NV hCaptcha) still need Scale-tier advancedStealth.
+    // Stealth pass: auto CAPTCHA-solving, set at session creation (reattaches
+    // preserve it). Residential proxies are now OPT-IN via BB_PROXIES=1 —
+    // proxy bandwidth is metered separately ($12/GB) and swarm runs blew 640%
+    // of the plan allowance (2026-07-05). Sites that hard-require a
+    // residential IP (some SoS walls) need BB_PROXIES=1 for that run only.
     ...(opts?.stealth
       ? {
           browserbaseSessionCreateParams: {
             projectId: process.env.BROWSERBASE_PROJECT_ID!,
-            proxies: true,
+            ...(process.env.BB_PROXIES === "1" ? { proxies: true } : {}),
             browserSettings: { solveCaptchas: true },
           },
         }
