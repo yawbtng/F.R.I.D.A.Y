@@ -47,3 +47,32 @@ console shows nothing useful; you MUST replay the upgrade yourself to see the 40
 - When a socket dies silently, reproduce the handshake in Node (global `WebSocket`, subprotocols
   `["ai-gateway-realtime.v1", "ai-gateway-auth.<token>"]`) or a raw `https` upgrade to read the
   real close code / 4xx body — the SDK swallows it.
+
+## experimental_useRealtime rebuilds the session on any new options REFERENCE (2026-07-05)
+
+**Bug:** Voice glitched, played two overlapping voices, and never completed a tool call (browsers
+never spun up) even though it "responded." Root cause: `use-voice.ts` passed `sessionConfig` (and
+`api`) as **inline object literals**. The SDK's `shouldCreateRealtimeStore` compares those by
+reference (`currentKey.sessionConfig !== nextOptions.sessionConfig`), so every render — and the
+hook re-renders constantly via `useSyncExternalStore` on messages/isPlaying/status — tore down the
+live WebSocket + AudioContext and built a new one. Overlapping audio = old context still draining
+while the new one starts; tool calls die because the session resets mid-round-trip.
+
+**Fix:** `useMemo` the `api` and `sessionConfig` objects (deps `[instructions, voice]`, which never
+change) so the realtime store is created ONCE per session. Type them via
+`Parameters<typeof experimental_useRealtime>[0]["sessionConfig"]` so the memoized literal keeps its
+narrowing (`server-vad`, modalities) instead of widening to `string`.
+
+**Rules for next time:**
+- Any object/array/function passed into a hook that keys off reference identity (realtime stores,
+  SWR, effect deps) MUST be memoized or module-constant. Inline literals silently thrash.
+- Symptom pattern to recognize: "it half-works, stutters, and long/async operations never finish"
+  → suspect the session/connection is being recreated under you, not the operation itself.
+
+## Realtime on laptop speakers self-triggers (echo) — constrain the mic, offer mute (2026-07-05)
+
+The model's audio plays through a Web Audio `AudioContext` that the browser's echo-canceller has no
+reference to, so on speakers the mic re-hears FRIDAY and server-VAD fires a new turn (talks over
+itself). Mitigations shipped: `getUserMedia({ audio: { echoCancellation, noiseSuppression,
+autoGainControl } })` + a real mute button (toggles `track.enabled`, session stays live). Barge-in
+is intentionally kept, so headphones are still the cleanest for a recorded demo.

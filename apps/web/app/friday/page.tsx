@@ -75,8 +75,8 @@ export default function FridayPage() {
     }
   };
 
-  const micActive = voice.status === 'connected';
-  const toggleMic = () => (micActive ? voice.disconnect() : voice.connect());
+  const connected = voice.status === 'connected';
+  const connecting = voice.status === 'connecting';
 
   const settled = tiles.filter((t) => SETTLED.includes(t.status)).length;
   const errored = tiles.filter((t) => t.status === 'error').length;
@@ -211,30 +211,60 @@ export default function FridayPage() {
           }}
           className="flex items-center gap-3 p-2 glass rounded-xl"
         >
-          <button
-            type="button"
-            onClick={toggleMic}
-            aria-label={micActive ? 'End voice session' : 'Start voice session'}
-            className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 focus-ring ${
-              micActive
-                ? 'bg-friday-accent/20 text-friday-accent shadow-glow border border-friday-accent/30'
-                : 'glass-subtle text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.08]'
-            }`}
-          >
-            <svg
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          {!connected ? (
+            // Not in a call: single button starts the voice session.
+            <button
+              type="button"
+              onClick={() => voice.connect()}
+              disabled={connecting}
+              aria-label="Start voice session"
+              title="Start voice"
+              className="flex items-center justify-center w-10 h-10 rounded-lg glass-subtle text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.08] transition-all duration-200 focus-ring disabled:opacity-50"
             >
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" x2="12" y1="19" y2="22" />
-            </svg>
-          </button>
+              {connecting ? (
+                <div className="h-4 w-4 rounded-full border-2 border-friday-accent/30 border-t-friday-accent animate-spin" />
+              ) : (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+              )}
+            </button>
+          ) : (
+            // In a call: mute/unmute the mic (session stays live) + a separate end button.
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={voice.toggleMute}
+                aria-label={voice.muted ? 'Unmute microphone' : 'Mute microphone'}
+                title={voice.muted ? 'Muted — tap to talk' : 'Mute'}
+                className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 focus-ring ${
+                  voice.muted
+                    ? 'bg-red-500/15 text-red-300 border border-red-400/30'
+                    : 'bg-friday-accent/20 text-friday-accent shadow-glow border border-friday-accent/30'
+                }`}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                  {voice.muted && <line x1="4" y1="3" x2="20" y2="21" />}
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={voice.disconnect}
+                aria-label="End voice session"
+                title="End session"
+                className="flex items-center justify-center w-10 h-10 rounded-lg glass-subtle text-friday-text-tertiary hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 focus-ring"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           <input
             type="text"
