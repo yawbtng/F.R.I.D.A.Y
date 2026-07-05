@@ -83,6 +83,16 @@ export default function FridayPage() {
   const focusedTile = focusedId ? tiles.find((t) => t.id === focusedId) ?? null : null;
   const recent = voice.messages.slice(-6);
 
+  // Never surface transport/error micro-states ('failed'/'connecting'/'disconnected') as the big
+  // orb label — mid-run they read as alarming even when voice is fine. Show only conversational
+  // states; otherwise a neutral word tied to the swarm phase.
+  const conversational =
+    voice.voiceState === 'listening' ||
+    voice.voiceState === 'speaking' ||
+    voice.voiceState === 'thinking';
+  const orbState = conversational ? voice.voiceState : 'idle';
+  const voiceWord = conversational ? voice.voiceState : phase === 'done' ? 'done' : 'running';
+
   // Top-bar right: swarm scoreboard + report/retry/new (only once a run has started).
   const headerRight =
     phase !== 'idle' ? (
@@ -133,7 +143,7 @@ export default function FridayPage() {
 
         {phase === 'idle' && !planning && plan.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-5 py-6 text-center">
-            <AgentAudioVisualizerAura size="lg" state={voice.voiceState} color="#3B82F6" themeMode="dark" />
+            <AgentAudioVisualizerAura size="lg" state={orbState} color="#3B82F6" themeMode="dark" />
             <p className="text-sm text-friday-text-secondary">
               {voice.status === 'connected'
                 ? 'Listening… tell me what to check.'
@@ -167,9 +177,9 @@ export default function FridayPage() {
         {(phase === 'running' || phase === 'done') && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <AgentAudioVisualizerAura size="sm" state={voice.voiceState} color="#3B82F6" themeMode="dark" />
+              <AgentAudioVisualizerAura size="sm" state={orbState} color="#3B82F6" themeMode="dark" />
               <span className="font-mono text-[11px] uppercase tracking-wide text-friday-text-tertiary">
-                {voice.status === 'connected' ? voice.voiceState : phase === 'done' ? 'done' : 'running'}
+                {voiceWord}
               </span>
             </div>
             <SwarmGrid tiles={tiles} onSelect={(t) => setFocusedId(t.id)} />

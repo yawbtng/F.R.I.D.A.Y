@@ -91,6 +91,10 @@ export function useVoice({
     [instructions, voice],
   );
 
+  // Kept fresh (below) so onError can tell a transient blip from a real disconnect without a
+  // TDZ reference to `rt` (its closure only runs later).
+  const statusRef = useRef<"disconnected" | "connecting" | "connected" | "error">("disconnected");
+
   const rt = experimental_useRealtime({
     model,
     api,
@@ -110,10 +114,13 @@ export function useVoice({
       }
     },
     onError: (e) => {
-      setVoiceState("failed");
+      // A transient realtime error while still connected shouldn't nuke the UI to "failed" (it
+      // flashed FAILED on the orb mid-run while voice kept working). Only fail when truly down.
+      if (statusRef.current !== "connected") setVoiceState("failed");
       onError?.(e);
     },
   });
+  statusRef.current = rt.status;
 
   const connect = useCallback(async () => {
     setVoiceState("connecting");
