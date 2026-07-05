@@ -108,12 +108,23 @@ export function FridayShell(props: FridayShellProps) {
 
       {/* Main content — collapsible 3-column layout */}
       <div className="flex-1 min-h-0 flex">
-        {/* Left sidebar (md+) — shown when open */}
-        {leftOpen && (
-          <div className="hidden md:block flex-shrink-0 w-[280px]">
-            <SessionSidebar collapsed={false} activeSessionId={props.sessionId} onSelectSession={props.onSelectSession} onNewSession={props.onNewSession} />
-          </div>
-        )}
+        {/* Left sidebar (md+) — smoothly collapses to zero width */}
+        <AnimatePresence initial={false}>
+          {leftOpen && (
+            <motion.div
+              key="left-panel"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+              className="hidden md:block flex-shrink-0 overflow-hidden"
+            >
+              <div className="h-full w-[280px]">
+                <SessionSidebar collapsed={false} activeSessionId={props.sessionId} onSelectSession={props.onSelectSession} onNewSession={props.onNewSession} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Mobile sidebar overlay */}
         <AnimatePresence>
@@ -161,13 +172,24 @@ export function FridayShell(props: FridayShellProps) {
           )}
         </div>
 
-        {/* Right — Mission Log (md+, hidden on mobile) — shown when open. Defaults to the Convex
-            log; Phase B passes a live-run panel via rightPanel. */}
-        {rightOpen && (
-          <div className="hidden md:block flex-shrink-0 w-[320px]">
-            {props.rightPanel ?? <MissionLog sessionId={props.sessionId} />}
-          </div>
-        )}
+        {/* Right — Mission Log (md+, hidden on mobile) — smoothly collapses. Defaults to the
+            Convex log; Phase B passes a live-run panel via rightPanel. */}
+        <AnimatePresence initial={false}>
+          {rightOpen && (
+            <motion.div
+              key="right-panel"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+              className="hidden md:block flex-shrink-0 overflow-hidden"
+            >
+              <div className="h-full w-[320px]">
+                {props.rightPanel ?? <MissionLog sessionId={props.sessionId} />}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
