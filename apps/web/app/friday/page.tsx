@@ -8,7 +8,6 @@
 
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import type { UIMessage } from 'ai';
 import { useFriday } from '@/hooks/use-friday';
 import { FridayShell } from '@/components/friday-shell';
 import { AgentAudioVisualizerAura } from '@/components/agents-ui/agent-audio-visualizer-aura';
@@ -17,15 +16,10 @@ import { PlanReview } from '@/components/plan-review';
 import { PlanningLoader } from '@/components/planning-loader';
 import { BrowserModal } from '@/components/browser-modal';
 import { ArtifactModal } from '@/components/artifact-modal';
+import { LiveRunPanel } from '@/components/live-run-panel';
 
 // Statuses that count as a settled answer for the header tally (mirrors swarm/page.tsx).
 const SETTLED = ['active', 'inactive', 'notfound', 'done'];
-
-/** Flatten a v7 UIMessage to plain text — joins its text parts, ignores the rest. */
-function textOf(m: UIMessage): string {
-  if (!Array.isArray(m.parts)) return '';
-  return m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('').trim();
-}
 
 export default function FridayPage() {
   const {
@@ -81,7 +75,6 @@ export default function FridayPage() {
   const settled = tiles.filter((t) => SETTLED.includes(t.status)).length;
   const errored = tiles.filter((t) => t.status === 'error').length;
   const focusedTile = focusedId ? tiles.find((t) => t.id === focusedId) ?? null : null;
-  const recent = voice.messages.slice(-6);
 
   // Never surface transport/error micro-states ('failed'/'connecting'/'disconnected') as the big
   // orb label — mid-run they read as alarming even when voice is fine. Show only conversational
@@ -186,27 +179,6 @@ export default function FridayPage() {
           </div>
         )}
 
-        {/* Transcript — compact, only while connected with real turns */}
-        {voice.status === 'connected' && recent.length > 0 && (
-          <div className="mt-4 glass rounded-xl p-3 max-h-36 overflow-y-auto">
-            <div className="space-y-1.5">
-              {recent.map((m) => {
-                const t = textOf(m);
-                if (!t) return null;
-                const isStatus = t.startsWith('[status]');
-                return (
-                  <div
-                    key={m.id}
-                    className={`text-xs ${isStatus ? 'italic text-friday-text-tertiary/70' : 'text-friday-text-secondary'}`}
-                  >
-                    <span className="mr-2 font-mono text-[10px] uppercase text-friday-text-tertiary">{m.role}</span>
-                    {t}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Controls bar — mic (voice connect toggle) + text-to-plan (mirrors command-center) */}
@@ -310,9 +282,19 @@ export default function FridayPage() {
     </div>
   );
 
+  const rightPanel = (
+    <LiveRunPanel
+      messages={voice.messages}
+      tiles={tiles}
+      phase={phase}
+      elapsed={elapsed}
+      title={planTitle || task}
+    />
+  );
+
   return (
     <>
-      <FridayShell center={center} headerRight={headerRight} onNewSession={resetAll} />
+      <FridayShell center={center} headerRight={headerRight} rightPanel={rightPanel} onNewSession={resetAll} />
 
       <AnimatePresence>
         {focusedTile && <BrowserModal tile={focusedTile} onClose={() => setFocusedId(null)} />}
