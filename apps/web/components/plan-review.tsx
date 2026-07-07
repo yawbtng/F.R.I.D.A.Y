@@ -7,11 +7,12 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, ArrowLeft, X, Plus } from 'lucide-react';
 import { hostOf } from './grid-tile';
 import type { SwarmTarget } from '@/lib/swarm-target';
 
 const inputBase =
-  'rounded bg-white/[0.03] border border-white/[0.06] px-2 py-1 text-[11px] focus-ring placeholder:text-friday-text-tertiary';
+  'rounded-md bg-surface border border-border px-2 py-1 text-[11px] text-text placeholder:text-text-subtle focus:border-border-accent focus:ring-2 focus:ring-accent focus:outline-none ease-brand';
 
 const needsDetails = (t: SwarmTarget) => !t.goal.trim() || !t.extract.trim();
 
@@ -62,28 +63,29 @@ export function PlanReview({
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold truncate">{title || 'Review plan'}</h2>
-          <p className="text-xs text-friday-text-tertiary">
+          <p className="text-xs text-text-muted">
             {targets.length} target{targets.length === 1 ? '' : 's'} · edit, remove, or add. Nothing spawns until you run.
           </p>
         </div>
         <button
           onClick={onBack}
-          className="shrink-0 text-xs text-friday-text-tertiary hover:text-friday-text-primary focus-ring rounded px-1"
+          className="shrink-0 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-text-muted hover:bg-surface-2 hover:text-text focus-ring"
         >
-          ← Back
+          <ArrowLeft className="h-3 w-3" />
+          Back
         </button>
       </div>
 
       {/* What the adversarial critic pass tightened. */}
       {notes.length > 0 && (
-        <div className="mb-3 rounded-lg glass px-3 py-2.5">
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-friday-accent">
-            <span>✦</span> FRIDAY tightened these
+        <div className="mb-3 rounded-lg border border-border bg-surface shadow-inset-top px-3 py-2.5">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-accent-text">
+            <Sparkles className="h-3 w-3" /> FRIDAY tightened these
           </div>
           <ul className="space-y-1">
             {notes.map((n, i) => (
-              <li key={i} className="flex gap-2 text-xs text-friday-text-secondary">
-                <span className="text-friday-text-tertiary">·</span>
+              <li key={i} className="flex gap-2 text-xs text-text-muted">
+                <span className="text-text-muted">·</span>
                 <span>{n}</span>
               </li>
             ))}
@@ -97,10 +99,10 @@ export function PlanReview({
           const summary = t.startUrl ? hostOf(t.startUrl) : t.query ?? '';
           const isAgent = t.engine === 'bb-agent';
           return (
-            <div key={t.id} className="glass rounded-lg overflow-hidden">
+            <div key={t.id} className="rounded-lg border border-border bg-surface shadow-inset-top overflow-hidden">
               {/* Always-visible summary row: number, label, one-line summary, chips, controls. */}
               <div className="flex items-center gap-2 p-2.5">
-                <span className="w-4 shrink-0 text-center font-mono text-[10px] text-friday-text-tertiary">{i + 1}</span>
+                <span className="w-4 shrink-0 text-center font-mono text-[10px] text-text-muted">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <input
                     value={t.label}
@@ -111,17 +113,17 @@ export function PlanReview({
                   />
                   <div className="mt-1 flex items-center gap-1.5 pl-0.5">
                     {isAgent && (
-                      <span className="shrink-0 rounded bg-friday-accent/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-friday-accent ring-1 ring-friday-accent/30">
+                      <span className="shrink-0 rounded-sm bg-[var(--accent-pulse)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-text ring-1 ring-border-accent">
                         agent
                       </span>
                     )}
                     {summary ? (
-                      <span className="min-w-0 truncate font-mono text-[11px] text-friday-text-tertiary">{summary}</span>
+                      <span className="min-w-0 truncate font-mono text-[11px] text-text-muted">{summary}</span>
                     ) : (
-                      <span className="shrink-0 text-[11px] italic text-friday-text-tertiary">no URL or query yet</span>
+                      <span className="shrink-0 text-[11px] italic text-text-muted">no URL or query yet</span>
                     )}
                     {needsDetails(t) && (
-                      <span className="ml-auto shrink-0 text-[10px] font-medium text-amber-300/80">needs goal &amp; extract</span>
+                      <span className="ml-auto shrink-0 text-[10px] font-medium text-warning-fg">needs goal &amp; extract</span>
                     )}
                   </div>
                 </div>
@@ -129,7 +131,7 @@ export function PlanReview({
                   onClick={() => toggle(t.id)}
                   aria-expanded={open}
                   aria-controls={`details-${t.id}`}
-                  className="shrink-0 flex items-center gap-1 rounded px-1.5 py-1 text-[11px] text-friday-text-secondary hover:text-friday-text-primary focus-ring"
+                  className="shrink-0 flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-text-muted hover:bg-surface-2 hover:text-text focus-ring"
                 >
                   Edit details
                   <svg
@@ -146,9 +148,9 @@ export function PlanReview({
                 <button
                   onClick={() => remove(i)}
                   aria-label={`Remove target ${i + 1}`}
-                  className="shrink-0 h-6 w-6 rounded text-friday-text-tertiary hover:text-red-300 hover:bg-red-400/10 focus-ring"
+                  className="shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-error-tint hover:text-error-fg focus-ring"
                 >
-                  ×
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
@@ -163,7 +165,7 @@ export function PlanReview({
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-2 border-t border-white/[0.06] px-2.5 pb-2.5 pt-2.5">
+                    <div className="space-y-2 border-t border-border px-2.5 pb-2.5 pt-2.5">
                       <div className="grid gap-2 sm:grid-cols-2">
                         <input
                           value={t.startUrl ?? ''}
@@ -204,22 +206,22 @@ export function PlanReview({
         })}
       </div>
 
-      <button onClick={add} className="mt-2.5 text-xs text-friday-accent hover:underline focus-ring rounded px-1">
-        + Add target
+      <button onClick={add} className="mt-2.5 inline-flex items-center gap-1 rounded-md px-1 text-xs text-accent-text hover:underline focus-ring">
+        <Plus className="h-3.5 w-3.5" /> Add target
       </button>
 
-      {error && <p className="mt-3 text-xs text-red-400 font-mono">{error}</p>}
+      {error && <p className="mt-3 text-xs text-error-fg font-mono">{error}</p>}
 
       <div className="mt-4">
         <button
           onClick={onRun}
           disabled={targets.length === 0 || incomplete}
-          className="rounded-lg bg-friday-accent/20 px-5 py-2.5 text-sm font-semibold text-friday-accent ring-1 ring-friday-accent/40 hover:bg-friday-accent/30 disabled:opacity-40 focus-ring"
+          className="group inline-flex items-center justify-center gap-2 rounded-pill bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg-strong shadow-inset-top transition-[background-color,border-radius,transform] duration-200 ease-brand hover:bg-accent-hover hover:rounded-lg active:scale-[0.98] disabled:opacity-40 focus-ring"
         >
           Run swarm → {targets.length} browser{targets.length === 1 ? '' : 's'}
         </button>
         {incomplete && (
-          <p className="mt-2 text-[11px] text-friday-text-tertiary">Every target needs a goal and an extract question.</p>
+          <p className="mt-2 text-[11px] text-text-muted">Every target needs a goal and an extract question.</p>
         )}
       </div>
     </div>

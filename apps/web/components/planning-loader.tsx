@@ -38,7 +38,7 @@ export function PlanningLoader() {
         {[0, 1, 2].map((r) => (
           <motion.span
             key={r}
-            className="absolute inset-0 rounded-full border border-friday-accent/40"
+            className="absolute inset-0 rounded-full border border-border-accent bg-[var(--accent-pulse)]"
             initial={{ scale: 0.25, opacity: 0.5 }}
             animate={{ scale: 1, opacity: 0 }}
             transition={{ duration: 2.6, repeat: Infinity, delay: r * 0.85, ease: 'easeOut' }}
@@ -46,8 +46,8 @@ export function PlanningLoader() {
         ))}
 
         {/* faint static orbits */}
-        <div className="absolute inset-3 rounded-full border border-white/[0.08]" />
-        <div className="absolute inset-12 rounded-full border border-white/[0.05]" />
+        <div className="absolute inset-3 rounded-full border border-border" />
+        <div className="absolute inset-12 rounded-full border border-border" />
 
         {/* revolving ring of nodes */}
         <motion.div
@@ -62,7 +62,7 @@ export function PlanningLoader() {
               style={{ transform: `rotate(${(n / NODES.length) * 360}deg)` }}
             >
               <motion.span
-                className="absolute left-1/2 top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-friday-accent shadow-glow"
+                className="absolute left-1/2 top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-accent shadow-glow"
                 animate={{ opacity: [0.2, 1, 0.2], scale: [0.7, 1.3, 0.7] }}
                 transition={{ duration: 1.8, repeat: Infinity, delay: n * 0.18, ease: 'easeInOut' }}
               />
@@ -72,8 +72,7 @@ export function PlanningLoader() {
 
         {/* pulsing core */}
         <motion.div
-          className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-friday-accent"
-          style={{ boxShadow: '0 0 20px 4px rgba(59,130,246,0.6)' }}
+          className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-glow"
           animate={{ scale: [1, 1.6, 1], opacity: [0.85, 1, 0.85] }}
           transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -81,7 +80,7 @@ export function PlanningLoader() {
 
       {/* Cycling status + shimmer */}
       <div className="space-y-3.5">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-friday-text-tertiary">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">
           Assembling the swarm
         </div>
 
@@ -107,7 +106,7 @@ export function PlanningLoader() {
               className="h-1.5 rounded-full"
               animate={{
                 width: idx === i ? 22 : 6,
-                backgroundColor: idx <= i ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.14)',
+                backgroundColor: idx <= i ? 'var(--accent)' : 'var(--surface-2)',
               }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
             />
@@ -119,9 +118,9 @@ export function PlanningLoader() {
         .shimmer {
           background: linear-gradient(
             90deg,
-            rgba(148, 163, 184, 0.55) 0%,
-            #f1f5f9 50%,
-            rgba(148, 163, 184, 0.55) 100%
+            var(--text-muted) 0%,
+            var(--text) 50%,
+            var(--text-muted) 100%
           );
           background-size: 200% 100%;
           -webkit-background-clip: text;

@@ -60,14 +60,14 @@ export function FridayShell(props: FridayShellProps) {
   const [rightOpen, setRightOpen] = useState(true);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-friday-bg flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-bg flex flex-col">
       {/* Top bar */}
-      <header className="flex-shrink-0 flex items-center justify-between px-4 h-12 glass glass-highlight">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 h-12 bg-bg border-b border-border">
         {/* Left — Sessions toggle + logo */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setLeftOpen((v) => !v)}
-            className="flex items-center justify-center w-8 h-8 rounded-md text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors duration-150 ease-out focus-ring"
+            className="flex items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text hover:bg-surface-2 transition-colors duration-150 ease-out focus-ring"
             aria-label={leftOpen ? 'Hide sessions' : 'Show sessions'}
             title={leftOpen ? 'Hide sessions' : 'Show sessions'}
           >
@@ -77,8 +77,8 @@ export function FridayShell(props: FridayShellProps) {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-friday-accent shadow-glow" />
-            <span className="text-sm font-semibold text-friday-text-primary tracking-wide">
+            <div className="w-2 h-2 rounded-full bg-accent shadow-glow" />
+            <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted">
               F.R.I.D.A.Y.
             </span>
           </div>
@@ -87,8 +87,8 @@ export function FridayShell(props: FridayShellProps) {
         {/* Right — status indicator + optional swarm controls + Mission Log toggle */}
         <div className="flex items-center gap-3">
           {props.sessionId && (
-            <div className="flex items-center gap-1.5 text-xs text-friday-text-tertiary font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-friday-active" />
+            <div className="flex items-center gap-1.5 text-xs text-success-fg font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-success" />
               Active
             </div>
           )}
@@ -96,7 +96,7 @@ export function FridayShell(props: FridayShellProps) {
           <ThemeToggle />
           <button
             onClick={() => setRightOpen((v) => !v)}
-            className="hidden md:flex items-center justify-center w-8 h-8 rounded-md text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors duration-150 ease-out focus-ring"
+            className="hidden md:flex items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text hover:bg-surface-2 transition-colors duration-150 ease-out focus-ring"
             aria-label={rightOpen ? 'Hide mission log' : 'Show mission log'}
             title={rightOpen ? 'Hide mission log' : 'Show mission log'}
           >
@@ -134,7 +134,7 @@ export function FridayShell(props: FridayShellProps) {
             <>
               <motion.div
                 key="sidebar-backdrop"
-                className="md:hidden fixed inset-0 z-40 bg-black/60"
+                className="md:hidden fixed inset-0 z-40 bg-scrim"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

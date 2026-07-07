@@ -123,7 +123,7 @@ export function CommandCenter({
       <div className="flex-shrink-0 px-4 pb-4">
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-3 p-2 glass rounded-xl"
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2 shadow-inset-top"
         >
           {/* Mic toggle */}
           <button
@@ -131,11 +131,11 @@ export function CommandCenter({
             onClick={onMicToggle}
             className={`
               flex items-center justify-center w-10 h-10 rounded-lg
-              transition-all duration-200 ease-out focus-ring
+              transition-all duration-200 ease-brand focus-ring
               ${
                 micActive
-                  ? 'bg-friday-accent/20 text-friday-accent shadow-glow backdrop-blur-sm border border-friday-accent/30'
-                  : 'glass-subtle text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.08]'
+                  ? 'bg-[var(--accent-pulse)] text-accent-text shadow-glow border border-border-accent'
+                  : 'border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text'
               }
             `}
             aria-label={micActive ? 'Mute microphone' : 'Unmute microphone'}
@@ -164,14 +164,14 @@ export function CommandCenter({
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             placeholder="Type a command..."
-            className="flex-1 bg-transparent text-sm text-friday-text-primary placeholder:text-friday-text-tertiary focus:outline-none font-mono selection:bg-friday-accent/30"
+            className="flex-1 bg-transparent text-sm text-text placeholder:text-text-subtle focus:outline-none font-mono selection:bg-accent selection:text-accent-fg-strong"
           />
 
           {/* Send button */}
           <button
             type="submit"
             disabled={!textInput.trim()}
-            className="flex items-center justify-center w-10 h-10 rounded-lg bg-friday-accent/15 backdrop-blur-sm text-friday-accent disabled:opacity-30 disabled:cursor-not-allowed hover:bg-friday-accent/25 hover:shadow-[0_0_12px_rgba(59,130,246,0.2)] transition-all duration-200 ease-out focus-ring"
+            className="flex items-center justify-center w-10 h-10 rounded-lg bg-accent text-accent-fg-strong shadow-inset-top disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent-hover hover:shadow-glow active:scale-[0.98] transition-[background-color,box-shadow,transform] duration-200 ease-brand focus-ring"
             aria-label="Send command"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

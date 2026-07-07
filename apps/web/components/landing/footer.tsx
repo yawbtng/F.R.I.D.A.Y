@@ -6,6 +6,7 @@
 
 import Link from 'next/link';
 import { BrandMark } from '@/components/landing/primitives';
+import { BrowserbaseMark } from '@/components/landing/browserbase-logo';
 
 /** Inline GitHub mark — lucide's Github is deprecated, so we draw it with currentColor. */
 function GitHubMark({ className }: { className?: string }) {
@@ -81,7 +82,7 @@ export function Footer() {
             MIT · Built for the Browserbase showcase
           </p>
           <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
-            <BrandMark className="h-3.5 w-3.5" />
+            <BrowserbaseMark className="h-4 w-4" />
             Built on Browserbase
           </div>
         </div>

@@ -40,9 +40,9 @@ function relativeTime(timestamp: number): string {
 }
 
 const statusColors: Record<string, string> = {
-  active: 'bg-friday-active',
-  idle: 'bg-friday-pending',
-  error: 'bg-friday-error',
+  active: 'bg-success',
+  idle: 'bg-warning',
+  error: 'bg-error',
 };
 
 // ---------------------------------------------------------------------------
@@ -65,17 +65,17 @@ export function SessionSidebar({
   const sessions = useQuery(api.sessions.list);
 
   return (
-    <div className="h-full flex flex-col glass border-r border-white/[0.06]">
+    <div className="h-full flex flex-col bg-surface border-r border-border">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.06]">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
         {!collapsed && (
-          <span className="text-sm font-semibold text-friday-text-primary tracking-wide uppercase">
+          <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted">
             Sessions
           </span>
         )}
         {collapsed && (
           <svg
-            className="w-5 h-5 text-friday-text-secondary mx-auto"
+            className="w-5 h-5 text-text-muted mx-auto"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -125,7 +125,7 @@ export function SessionSidebar({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-14 rounded-md glass-subtle animate-pulse"
+                className="h-14 rounded-md bg-neutral-tint animate-pulse"
               />
             ))}
           </div>
@@ -134,7 +134,7 @@ export function SessionSidebar({
           !collapsed && (
             <motion.p
               variants={cardVariants}
-              className="text-xs text-friday-text-tertiary font-mono text-center mt-8"
+              className="text-xs text-text-muted font-mono text-center mt-8"
             >
               No sessions yet.{'\n'}Start one above.
             </motion.p>
@@ -149,11 +149,11 @@ export function SessionSidebar({
                 variants={cardVariants}
                 onClick={() => onSelectSession?.(session._id)}
                 className={`
-                  w-full text-left rounded-lg px-3 py-2.5 transition-all duration-200
+                  w-full text-left rounded-md px-3 py-2 text-sm transition-all duration-200 border-l-2
                   ${
                     isActive
-                      ? 'glass-heavy border-friday-accent/30 shadow-[0_0_12px_rgba(59,130,246,0.1)]'
-                      : 'border border-transparent hover:bg-white/[0.04] hover:border-white/[0.06]'
+                      ? 'bg-surface-2 text-text border-border-accent'
+                      : 'text-text-muted border-transparent hover:bg-surface-2'
                   }
                 `}
               >
@@ -161,7 +161,7 @@ export function SessionSidebar({
                   /* Collapsed: just status dot */
                   <div className="flex justify-center">
                     <span
-                      className={`w-2 h-2 rounded-full ${statusColors[session.status] ?? 'bg-friday-text-muted'}`}
+                      className={`w-2 h-2 rounded-full ${statusColors[session.status] ?? 'bg-neutral'}`}
                     />
                   </div>
                 ) : (
@@ -169,13 +169,13 @@ export function SessionSidebar({
                   <div className="flex items-start gap-2.5">
                     {/* Status dot */}
                     <span
-                      className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${statusColors[session.status] ?? 'bg-friday-text-muted'}`}
+                      className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${statusColors[session.status] ?? 'bg-neutral'}`}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-friday-text-primary truncate">
+                      <p className="text-sm font-medium truncate">
                         {session.title || 'Untitled Session'}
                       </p>
-                      <p className="text-[10px] text-friday-text-tertiary font-mono mt-0.5">
+                      <p className="font-mono text-xs text-text-muted mt-0.5">
                         {relativeTime(session.lastActiveAt)}
                       </p>
                     </div>

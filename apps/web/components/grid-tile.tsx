@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { RefreshCw, Maximize2 } from 'lucide-react';
 import type { WorkerStatus } from '@/lib/sos-adapters';
 
 /** Lifecycle of one browser tile: queued -> working -> a resolved WorkerStatus. */
@@ -15,15 +16,15 @@ export interface StatusMeta {
 
 /** Shared status styling — reused by the grid tile and the focus modal. */
 export const STATUS_META: Record<TileState, StatusMeta> = {
-  idle: { label: 'Queued', dot: 'bg-friday-text-tertiary', ring: 'ring-white/10', text: 'text-friday-text-tertiary' },
-  working: { label: 'Working', dot: 'bg-friday-accent', ring: 'ring-friday-accent/60', text: 'text-friday-accent' },
-  active: { label: 'Active', dot: 'bg-emerald-400', ring: 'ring-emerald-400/60', text: 'text-emerald-300' },
-  inactive: { label: 'Inactive', dot: 'bg-red-400', ring: 'ring-red-400/60', text: 'text-red-300' },
-  notfound: { label: 'Not found', dot: 'bg-amber-400', ring: 'ring-amber-400/50', text: 'text-amber-300' },
-  blocked: { label: 'Blocked', dot: 'bg-orange-400', ring: 'ring-orange-400/50', text: 'text-orange-300' },
-  error: { label: 'Error', dot: 'bg-red-500', ring: 'ring-red-500/60', text: 'text-red-400' },
-  // Generic (non-KYB) success. Teal, distinct from KYB's emerald "active".
-  done: { label: 'Done', dot: 'bg-teal-400', ring: 'ring-teal-400/60', text: 'text-teal-300' },
+  idle: { label: 'Queued', dot: 'bg-warning', ring: 'ring-warning', text: 'text-warning-fg' },
+  working: { label: 'Working', dot: 'bg-accent', ring: 'ring-accent', text: 'text-accent-text' },
+  active: { label: 'Active', dot: 'bg-success', ring: 'ring-success', text: 'text-success-fg' },
+  inactive: { label: 'Inactive', dot: 'bg-neutral', ring: 'ring-neutral', text: 'text-neutral-fg' },
+  notfound: { label: 'Not found', dot: 'bg-neutral', ring: 'ring-neutral', text: 'text-neutral-fg' },
+  blocked: { label: 'Blocked', dot: 'bg-warning', ring: 'ring-warning', text: 'text-warning-fg' },
+  error: { label: 'Error', dot: 'bg-error', ring: 'ring-error', text: 'text-error-fg' },
+  // Generic (non-KYB) success — shares the success token with KYB's "active".
+  done: { label: 'Done', dot: 'bg-success', ring: 'ring-success', text: 'text-success-fg' },
 };
 
 const RESOLVED: TileState[] = ['active', 'inactive', 'notfound', 'blocked', 'error', 'done'];
@@ -64,7 +65,7 @@ export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, note,
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className={`relative rounded-lg overflow-hidden glass-heavy ring-1 ${m.ring} transition-colors duration-300`}
+      className={`relative rounded-lg overflow-hidden border border-border bg-surface shadow-inset-top transition-colors duration-200 ease-brand hover:border-border-strong ${working ? 'ring-1 ring-accent' : ''}`}
     >
       {/* Pulsing glow while the agent works this portal */}
       {working && (
@@ -83,18 +84,18 @@ export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, note,
       )}
 
       {/* Browser chrome: traffic lights · state + address pill · status */}
-      <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white/[0.03] border-b border-white/[0.06]">
+      <div className="flex h-9 items-center gap-2 px-3 border-b border-border bg-surface-2">
         <div className="flex items-center gap-[5px] shrink-0">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-wc-red" />
+          <span className="w-2.5 h-2.5 rounded-full bg-wc-yellow" />
+          <span className="w-2.5 h-2.5 rounded-full bg-wc-green" />
         </div>
 
-        <div className="flex-1 min-w-0 flex items-center gap-2 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
-          <span className="text-[10px] font-mono font-semibold text-friday-text-primary truncate max-w-[45%] shrink-0" title={label}>
+        <div className="flex-1 min-w-0 flex items-center gap-2 px-2 py-0.5 rounded-md bg-surface border border-border">
+          <span className="text-[10px] font-mono font-semibold text-text truncate max-w-[45%] shrink-0" title={label}>
             {label}
           </span>
-          <span className="text-[10px] font-mono text-friday-text-tertiary truncate">{hostOf(url)}</span>
+          <span className="text-[10px] font-mono text-text-muted truncate">{hostOf(url)}</span>
         </div>
 
         <div className={`flex items-center gap-1.5 shrink-0 ${m.text}`}>
@@ -104,7 +105,7 @@ export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, note,
       </div>
 
       {/* Live Browserbase view */}
-      <div className="relative w-full bg-friday-bg" style={{ aspectRatio: '16 / 10' }}>
+      <div className="relative w-full aspect-video bg-surface-sunken">
         {screenshotUrl ? (
           // Session released on completion — show the frozen final page, not a dead iframe.
           <img
@@ -121,22 +122,23 @@ export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, note,
           />
         )}
         {/* Keep queued tiles calm until their worker fires */}
-        {status === 'idle' && <div className="absolute inset-0 bg-friday-bg/50" />}
+        {status === 'idle' && <div className="absolute inset-0 bg-scrim" />}
         {/* Live worker note (searching / retrying) so agency is visible on camera */}
         {working && note && (
-          <div className="absolute top-1.5 left-1.5 z-20 px-1.5 py-0.5 rounded bg-friday-accent/20 backdrop-blur-sm text-[10px] font-medium text-friday-accent ring-1 ring-friday-accent/40 pointer-events-none">
-            ↻ {note}
+          <div className="absolute top-1.5 left-1.5 z-20 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--accent-pulse)] backdrop-blur-sm text-[10px] font-medium text-accent-text ring-1 ring-accent pointer-events-none">
+            <RefreshCw className="h-3 w-3" aria-hidden />
+            {note}
           </div>
         )}
         {/* Extracted answer, surfaced on the tile once resolved (e.g. "Active", "$799"). */}
         {result && RESOLVED.includes(status) && (
-          <div className={`absolute bottom-1.5 left-1.5 z-20 max-w-[70%] px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[10px] font-medium truncate pointer-events-none ${m.text}`} title={result}>
+          <div className={`absolute bottom-1.5 left-1.5 z-20 max-w-[70%] px-1.5 py-0.5 rounded-md bg-scrim backdrop-blur-sm text-[10px] font-medium truncate pointer-events-none ${m.text}`} title={result}>
             {result}
           </div>
         )}
         {/* Timing badge once resolved */}
         {ms != null && RESOLVED.includes(status) && (
-          <div className="absolute bottom-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm text-[10px] font-mono text-friday-text-secondary pointer-events-none">
+          <div className="absolute bottom-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded-md bg-scrim backdrop-blur-sm text-[10px] font-mono tabular-nums text-text-muted pointer-events-none">
             {(ms / 1000).toFixed(1)}s
           </div>
         )}
@@ -148,9 +150,10 @@ export function GridTile({ label, url, liveViewUrl, screenshotUrl, result, note,
             aria-label={`Focus ${label}`}
             className="group absolute inset-0 z-30 cursor-pointer focus-ring"
           >
-            <span className="absolute inset-0 bg-transparent transition-colors group-hover:bg-white/[0.05]" />
-            <span className="absolute top-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-friday-text-secondary opacity-0 transition-opacity group-hover:opacity-100">
-              expand ⛶
+            <span className="absolute inset-0 bg-transparent transition-colors group-hover:bg-scrim" />
+            <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-muted opacity-0 transition-opacity group-hover:opacity-100">
+              expand
+              <Maximize2 className="h-3 w-3" aria-hidden />
             </span>
           </button>
         )}

@@ -56,14 +56,14 @@ export function LiveRunPanel({
   }, [turns.length, settled]);
 
   return (
-    <div className="h-full flex flex-col glass border-l border-white/[0.06]">
+    <div className="h-full flex flex-col bg-surface border-l border-border">
       {/* Header + live progress */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.06]">
-        <span className="text-sm font-semibold text-friday-text-primary tracking-wide uppercase">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+        <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted">
           Mission Log
         </span>
         {phase !== 'idle' && (
-          <span className="font-mono text-[11px] text-friday-text-tertiary">
+          <span className="font-mono text-[11px] text-text-muted">
             {settled}/{tiles.length} · {elapsed.toFixed(0)}s{errored ? ` · ${errored} err` : ''}
           </span>
         )}
@@ -72,29 +72,29 @@ export function LiveRunPanel({
       {/* Conversation feed */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {title && phase !== 'idle' && (
-          <div className="text-[11px] font-mono uppercase tracking-wider text-friday-text-tertiary pb-1">
+          <div className="rounded-md border border-border bg-info-tint p-3 font-mono text-[11px] uppercase tracking-wider text-text">
             {title}
           </div>
         )}
 
         {turns.length === 0 ? (
-          <p className="text-xs text-friday-text-tertiary font-mono text-center mt-8">
+          <p className="text-xs text-text-muted font-mono text-center mt-8">
             {running ? 'Working…' : 'Tap the mic or type a task to begin.'}
           </p>
         ) : (
           turns.map((t) =>
             t.role === 'user' ? (
               <div key={t.id} className="flex justify-end">
-                <div className="max-w-[85%] px-3 py-2 rounded-lg glass text-xs text-friday-text-primary">
+                <div className="max-w-[85%] px-3 py-2 rounded-lg bg-surface-2 border border-border text-xs text-text">
                   {t.text}
                 </div>
               </div>
             ) : (
               <div key={t.id} className="space-y-1">
-                <p className="text-[10px] font-semibold text-friday-text-accent uppercase tracking-wider">
+                <p className="text-[10px] font-semibold text-accent-text uppercase tracking-wider">
                   F.R.I.D.A.Y.
                 </p>
-                <p className="text-xs text-friday-text-secondary leading-relaxed">{t.text}</p>
+                <p className="text-xs text-text-muted leading-relaxed">{t.text}</p>
               </div>
             ),
           )
@@ -103,15 +103,15 @@ export function LiveRunPanel({
 
       {/* Try saying — only before a run, when there's no conversation yet */}
       {phase === 'idle' && turns.length === 0 && (
-        <div className="flex-shrink-0 border-t border-white/[0.06] px-4 py-3">
-          <p className="text-[10px] uppercase tracking-wider text-friday-text-tertiary mb-2 font-semibold">
+        <div className="flex-shrink-0 border-t border-border px-4 py-3">
+          <p className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted mb-2">
             Try saying
           </p>
           <div className="space-y-1.5">
             {EXAMPLES.map((cmd) => (
               <div
                 key={cmd}
-                className="text-xs text-friday-text-secondary font-mono px-2.5 py-1.5 glass-subtle rounded-md"
+                className="text-xs text-text-muted font-mono px-2.5 py-1.5 bg-surface-2 border border-border rounded-md"
               >
                 &ldquo;{cmd}&rdquo;
               </div>

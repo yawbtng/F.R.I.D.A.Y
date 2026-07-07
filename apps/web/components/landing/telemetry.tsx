@@ -7,7 +7,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { animate, motion, useInView } from 'framer-motion';
-import { Eyebrow, BrandMark } from '@/components/landing/primitives';
+import { Eyebrow } from '@/components/landing/primitives';
+import { BrowserbaseMark } from '@/components/landing/browserbase-logo';
 import { riseAndFade, staggerContainer, inView, EASE_OUT_EXPO } from '@/components/landing/animations';
 
 function cx(...parts: (string | false | undefined)[]) {
@@ -94,7 +95,7 @@ export function Telemetry() {
 
         <motion.div variants={riseAndFade} className="mt-14 flex justify-center">
           <span className="inline-flex items-center gap-2 rounded-pill border border-border bg-surface px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
-            <BrandMark className="h-4 w-4" />
+            <BrowserbaseMark className="h-4 w-4" />
             Built on Browserbase
           </span>
         </motion.div>

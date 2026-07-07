@@ -36,7 +36,7 @@ export function BrowserPreview({
     <div className="flex flex-col gap-3">
       {/* Browser Window */}
       <motion.div
-        className="rounded-xl glass-heavy glass-highlight overflow-hidden"
+        className="rounded-lg border border-border bg-surface overflow-hidden"
         animate={
           isLoading
             ? {
@@ -55,26 +55,26 @@ export function BrowserPreview({
         }
       >
         {/* Title Bar — macOS-style chrome */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] border-b border-white/[0.06] backdrop-blur-xl">
+        <div className="flex items-center gap-3 px-4 py-3 bg-surface-2 border-b border-border">
           {/* Traffic lights */}
           <div className="flex items-center gap-[6px] shrink-0">
-            <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-            <span className="w-3 h-3 rounded-full bg-[#febc2e]" />
-            <span className="w-3 h-3 rounded-full bg-[#28c840]" />
+            <span className="w-3 h-3 rounded-full bg-wc-red" />
+            <span className="w-3 h-3 rounded-full bg-wc-yellow" />
+            <span className="w-3 h-3 rounded-full bg-wc-green" />
           </div>
 
           {/* URL bar */}
           <div className="flex-1 min-w-0 mx-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] rounded-md border border-white/[0.06]">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-surface rounded-md border border-border">
               {/* Lock icon */}
               <svg
-                className="w-3.5 h-3.5 text-friday-text-tertiary shrink-0"
+                className="w-3.5 h-3.5 text-text-subtle shrink-0"
                 viewBox="0 0 16 16"
                 fill="currentColor"
               >
                 <path d="M8 1a4 4 0 0 0-4 4v2H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-1V5a4 4 0 0 0-4-4zm2.5 6H5.5V5a2.5 2.5 0 1 1 5 0v2z" />
               </svg>
-              <span className="text-xs font-mono text-friday-text-secondary truncate">
+              <span className="text-xs font-mono text-text-muted truncate">
                 {displayUrl}
               </span>
             </div>
@@ -84,7 +84,7 @@ export function BrowserPreview({
           <div className="shrink-0">
             {isLoading ? (
               <svg
-                className="w-4 h-4 text-friday-accent animate-spin"
+                className="w-4 h-4 text-accent animate-spin"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -94,7 +94,7 @@ export function BrowserPreview({
               </svg>
             ) : (
               <svg
-                className="w-4 h-4 text-friday-text-tertiary"
+                className="w-4 h-4 text-text-subtle"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -108,7 +108,7 @@ export function BrowserPreview({
         </div>
 
         {/* Viewport */}
-        <div className="relative w-full bg-friday-bg" style={{ aspectRatio: '16 / 10' }}>
+        <div className="relative w-full bg-surface-sunken" style={{ aspectRatio: '16 / 10' }}>
           {/* Live iframe */}
           {mode === 'live' && hasLive && (
             <iframe
@@ -142,7 +142,7 @@ export function BrowserPreview({
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3, ease: 'easeOut' }}
                 >
-                  <p className="text-friday-text-tertiary text-sm font-mono">
+                  <p className="text-text-subtle text-sm font-mono">
                     No screenshot yet
                   </p>
                 </motion.div>
@@ -153,7 +153,7 @@ export function BrowserPreview({
           {/* Live mode but no iframe URL */}
           {mode === 'live' && !hasLive && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <p className="text-friday-text-tertiary text-sm font-mono">
+              <p className="text-text-subtle text-sm font-mono">
                 No live view available
               </p>
             </div>
@@ -165,8 +165,8 @@ export function BrowserPreview({
               {!hasScreenshot && !hasLive ? (
                 <BrowserSkeleton />
               ) : (
-                <div className="absolute inset-0 bg-friday-bg/30 flex items-center justify-center">
-                  <div className="w-8 h-8 border-2 border-friday-accent/30 border-t-friday-accent rounded-full animate-spin" />
+                <div className="absolute inset-0 bg-[var(--scrim)] flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-border-accent border-t-accent rounded-full animate-spin" />
                 </div>
               )}
             </div>
@@ -177,20 +177,20 @@ export function BrowserPreview({
       {/* Controls bar */}
       <div className="flex items-center justify-between px-1">
         {/* Mode toggle */}
-        <div className="flex items-center gap-1 glass rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-surface-sunken border border-border rounded-lg p-1">
           <button
             onClick={() => setMode('live')}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ease-out focus-ring
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ease-brand focus-ring
               ${mode === 'live'
-                ? 'bg-friday-accent/15 text-friday-accent'
-                : 'text-friday-text-secondary hover:text-friday-text-primary'
+                ? 'bg-surface-2 text-accent-text'
+                : 'text-text-muted hover:text-text'
               }
             `}
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                mode === 'live' && hasLive ? 'bg-friday-active' : 'bg-friday-text-tertiary'
+                mode === 'live' && hasLive ? 'bg-success' : 'bg-text-subtle'
               }`}
             />
             Live
@@ -198,10 +198,10 @@ export function BrowserPreview({
           <button
             onClick={() => setMode('screenshot')}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ease-out focus-ring
+              flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ease-brand focus-ring
               ${mode === 'screenshot'
-                ? 'bg-friday-accent/15 text-friday-accent'
-                : 'text-friday-text-secondary hover:text-friday-text-primary'
+                ? 'bg-surface-2 text-accent-text'
+                : 'text-text-muted hover:text-text'
               }
             `}
           >
@@ -214,8 +214,8 @@ export function BrowserPreview({
 
         {/* Session ID */}
         {sessionId && (
-          <div className="flex items-center gap-1.5 text-xs text-friday-text-tertiary font-mono">
-            <span className="w-2 h-2 rounded-full bg-friday-active/60" />
+          <div className="flex items-center gap-1.5 text-xs text-text-subtle font-mono">
+            <span className="w-2 h-2 rounded-full bg-success" />
             Session: {sessionId.slice(0, 8)}
           </div>
         )}

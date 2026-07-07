@@ -3,6 +3,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, Check, X, Download } from 'lucide-react';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { useSessionScreenshot } from '@/hooks/use-session-screenshot';
@@ -68,58 +69,17 @@ function StatusIcon({ status }: { status: CommandStatus }) {
   switch (status) {
     case 'pending':
     case 'running':
-      return (
-        <svg
-          className="w-3.5 h-3.5 text-friday-pending animate-spin"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path d="M12 2v4" />
-          <path d="M12 18v4" />
-          <path d="M4.93 4.93l2.83 2.83" />
-          <path d="M16.24 16.24l2.83 2.83" />
-          <path d="M2 12h4" />
-          <path d="M18 12h4" />
-          <path d="M4.93 19.07l2.83-2.83" />
-          <path d="M16.24 7.76l2.83-2.83" />
-        </svg>
-      );
+      return <Loader2 className="w-3.5 h-3.5 text-warning-fg animate-spin" />;
     case 'done':
-      return (
-        <svg
-          className="w-3.5 h-3.5 text-friday-active"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      );
+      return <Check className="w-3.5 h-3.5 text-success-fg" />;
     case 'error':
-      return (
-        <svg
-          className="w-3.5 h-3.5 text-friday-error"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      );
+      return <X className="w-3.5 h-3.5 text-error-fg" />;
   }
 }
 
 function ToolBadge({ name }: { name: string }) {
   return (
-    <span className="inline-block text-[10px] font-mono px-1.5 py-0.5 rounded glass-subtle text-friday-text-accent">
+    <span className="inline-block rounded-sm border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] uppercase text-text-muted">
       {name}
     </span>
   );
@@ -134,7 +94,7 @@ function ScreenshotThumbnail({
   if (!url) return null;
 
   return (
-    <div className="mt-1.5 rounded-md overflow-hidden border border-white/[0.08] max-w-[200px]">
+    <div className="mt-1.5 rounded-md overflow-hidden border border-border max-w-[200px]">
       <img
         src={url}
         alt="Screenshot"
@@ -177,7 +137,7 @@ function CommandEntry({ command }: { command: Command }) {
     >
       {/* User input — right aligned */}
       <div className="flex justify-end">
-        <div className="max-w-[85%] px-3 py-2 rounded-lg glass text-xs text-friday-text-primary">
+        <div className="max-w-[85%] px-3 py-2 rounded-lg bg-surface-2 border border-border text-xs text-text">
           {command.input}
         </div>
       </div>
@@ -186,25 +146,25 @@ function CommandEntry({ command }: { command: Command }) {
       <div className="flex items-start gap-2">
         <StatusIcon status={command.status} />
         <div className="max-w-[85%] space-y-1">
-          <p className="text-[10px] font-semibold text-friday-text-accent uppercase tracking-wider">
+          <p className="text-[10px] font-semibold text-accent-text uppercase tracking-wider">
             F.R.I.D.A.Y.
           </p>
 
           {command.result && (
-            <p className="text-xs text-friday-text-secondary font-mono leading-relaxed whitespace-pre-wrap">
+            <p className="text-xs text-text-muted font-mono leading-relaxed whitespace-pre-wrap">
               {command.result}
             </p>
           )}
 
           {command.status === 'error' && command.errorMessage && (
-            <p className="text-xs text-friday-error font-mono">
+            <p className="text-xs text-error-fg font-mono">
               {command.errorMessage}
             </p>
           )}
 
           {(command.status === 'pending' || command.status === 'running') &&
             !command.result && (
-              <p className="text-xs text-friday-text-tertiary font-mono italic">
+              <p className="text-xs text-text-muted font-mono italic">
                 Processing...
               </p>
             )}
@@ -220,7 +180,7 @@ function CommandEntry({ command }: { command: Command }) {
               <ToolBadge key={tool} name={tool} />
             ))}
             {command.status === 'done' && command.durationMs != null && (
-              <span className="text-[10px] text-friday-text-tertiary font-mono">
+              <span className="text-[10px] text-text-muted font-mono">
                 {formatDuration(command.durationMs)}
               </span>
             )}
@@ -278,10 +238,10 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
   }, [commands]);
 
   return (
-    <div className="h-full flex flex-col glass border-l border-white/[0.06]">
+    <div className="h-full flex flex-col bg-surface border-l border-border">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.06]">
-        <span className="text-sm font-semibold text-friday-text-primary tracking-wide uppercase">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+        <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted">
           Mission Log
         </span>
         {/* Export button — functional when session data is available */}
@@ -289,23 +249,11 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
           <ExportSession session={exportData} />
         ) : (
           <button
-            className="text-friday-text-tertiary opacity-30 cursor-not-allowed"
+            className="text-text-muted opacity-30 cursor-not-allowed"
             aria-label="Export transcript (no session)"
             disabled
           >
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" x2="12" y1="15" y2="3" />
-            </svg>
+            <Download className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -353,7 +301,7 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
         </AnimatePresence>
 
         {!sessionId ? (
-          <p className="text-xs text-friday-text-tertiary font-mono text-center mt-8">
+          <p className="text-xs text-text-muted font-mono text-center mt-8">
             Select a session to view commands.
           </p>
         ) : commands === undefined ? (
@@ -362,12 +310,12 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
             {[1, 2].map((i) => (
               <div
                 key={i}
-                className="h-10 rounded-md glass-subtle animate-pulse"
+                className="h-10 rounded-md bg-surface-2 animate-pulse"
               />
             ))}
           </div>
         ) : commands.length === 0 ? (
-          <p className="text-xs text-friday-text-tertiary font-mono text-center mt-8">
+          <p className="text-xs text-text-muted font-mono text-center mt-8">
             Waiting for commands...
           </p>
         ) : (
@@ -378,8 +326,8 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
       </div>
 
       {/* Example commands */}
-      <div className="flex-shrink-0 border-t border-white/[0.06] px-4 py-3">
-        <p className="text-[10px] uppercase tracking-wider text-friday-text-tertiary mb-2 font-semibold">
+      <div className="flex-shrink-0 border-t border-border px-4 py-3">
+        <p className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted mb-2">
           Try saying
         </p>
         <div className="space-y-1.5">
@@ -390,7 +338,7 @@ export function MissionLog({ sessionId, error, onErrorRetry, exportData }: Missi
           ].map((cmd) => (
             <div
               key={cmd}
-              className="text-xs text-friday-text-secondary font-mono px-2.5 py-1.5 glass-subtle rounded-md hover:bg-white/[0.06] transition-all duration-150"
+              className="text-xs text-text-muted font-mono px-2.5 py-1.5 bg-surface-2 border border-border rounded-md hover:bg-surface-accent transition-colors duration-150 ease-brand"
             >
               &ldquo;{cmd}&rdquo;
             </div>

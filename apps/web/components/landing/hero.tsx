@@ -7,7 +7,8 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Eyebrow, Highlighter, BrandMark, ctaPrimary, ctaSecondary } from '@/components/landing/primitives';
+import { Eyebrow, Highlighter, ctaPrimary, ctaSecondary } from '@/components/landing/primitives';
+import { BrowserbaseMark } from '@/components/landing/browserbase-logo';
 import { riseAndFade, staggerContainer } from '@/components/landing/animations';
 
 const COLS = 9;
@@ -115,7 +116,7 @@ export function Hero() {
           variants={riseAndFade}
           className="mt-10 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted"
         >
-          <BrandMark className="h-3 w-3" />
+          <BrowserbaseMark className="h-3.5 w-3.5" />
           Built on Browserbase
         </motion.div>
       </motion.div>
