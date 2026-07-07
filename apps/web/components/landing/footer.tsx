@@ -31,9 +31,8 @@ export function Footer() {
               F.R.I.D.A.Y
             </span>
           </div>
-          <p className="mt-6 max-w-md font-mono text-xs leading-relaxed tracking-wide text-text-muted">
-            Named for Tony Stark&apos;s AI. Yours doesn&apos;t fly the suit — it commands a swarm of
-            browsers.
+          <p className="mt-6 font-mono text-sm tracking-wide text-text-muted">
+            Tony Stark had one. Now you do.
           </p>
         </div>
 
