@@ -94,7 +94,7 @@ export function SessionSidebar({
         <div className="px-3 pt-3">
           <button
             onClick={onNewSession}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-friday-accent/90 backdrop-blur-sm text-white text-xs font-semibold tracking-wide hover:bg-friday-accent-hover transition-all duration-200 shadow-glow hover:shadow-[0_0_24px_var(--accent-glow)] hover:scale-[1.02]"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-pill bg-accent text-accent-fg-strong text-xs font-semibold tracking-wide shadow-inset-top transition-[background-color,border-radius,transform] duration-200 ease-brand hover:bg-accent-hover hover:rounded-lg active:scale-[0.98] focus-ring"
           >
             <svg
               className="w-3.5 h-3.5"

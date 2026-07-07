@@ -5,6 +5,7 @@ import { DemoSection } from '@/components/landing/demo-section';
 import { BoldStatement } from '@/components/landing/bold-statement';
 import { HowItWorks } from '@/components/landing/how-it-works';
 import { BentoFeatures } from '@/components/landing/bento-features';
+import { UseCases } from '@/components/landing/use-cases';
 import { Telemetry } from '@/components/landing/telemetry';
 import { CTASection } from '@/components/landing/cta-section';
 import { Footer } from '@/components/landing/footer';
@@ -22,6 +23,7 @@ export default function LandingPage() {
       <BoldStatement />
       <HowItWorks />
       <BentoFeatures />
+      <UseCases />
       <Telemetry />
       <CTASection />
       <Footer />

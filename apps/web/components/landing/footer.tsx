@@ -23,12 +23,18 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-6">
-        {/* Oversized brand stamp */}
-        <div className="flex items-center gap-4 py-14 sm:py-20">
-          <BrandMark className="h-8 w-8 shrink-0 sm:h-11 sm:w-11" />
-          <span className="font-display text-[clamp(2.5rem,11vw,7.5rem)] font-medium leading-none tracking-tight text-text">
-            F.R.I.D.A.Y
-          </span>
+        {/* Oversized brand stamp + a nod to the namesake (Tony Stark's AI) */}
+        <div className="py-14 sm:py-20">
+          <div className="flex items-center gap-4">
+            <BrandMark className="h-8 w-8 shrink-0 sm:h-11 sm:w-11" />
+            <span className="font-display text-[clamp(2.5rem,11vw,7.5rem)] font-medium leading-none tracking-tight text-text">
+              F.R.I.D.A.Y
+            </span>
+          </div>
+          <p className="mt-6 max-w-md font-mono text-xs leading-relaxed tracking-wide text-text-muted">
+            Named for Tony Stark&apos;s AI. Yours doesn&apos;t fly the suit — it commands a swarm of
+            browsers.
+          </p>
         </div>
 
         {/* Link columns */}
