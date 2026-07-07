@@ -101,7 +101,6 @@ export function CommandCenter({
           size={sessionActive ? 'sm' : 'lg'}
           state={orbState === 'speaking' ? 'speaking' : 'listening'}
           color="#FF4500"
-          themeMode="dark"
         />
       </motion.div>
 

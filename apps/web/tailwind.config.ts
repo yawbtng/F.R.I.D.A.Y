@@ -93,6 +93,13 @@ const config: Config = {
         'glass-elevated': 'var(--glass-shadow-elevated)',
         overlay: 'var(--shadow-overlay)',
         pop: 'var(--shadow-pop)',
+        // Browserbase depth-without-shadow: a 1px inset top-highlight (periwinkle
+        // on light, faint white on dark) instead of a drop shadow.
+        'inset-top': 'inset 0 1px 0 0 var(--highlight)',
+      },
+      transitionTimingFunction: {
+        // The single signature easing used across the whole system (§1.4).
+        brand: 'var(--ease)',
       },
       backdropBlur: {
         glass: 'var(--glass-blur)',

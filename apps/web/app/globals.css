@@ -358,7 +358,8 @@ html {
   transition: left 0.65s ease-in-out;
 }
 
-.group:hover .bento-shine::after {
+.group:hover .bento-shine::after,
+.group.bento-shine:hover::after {
   left: 125%;
 }
 

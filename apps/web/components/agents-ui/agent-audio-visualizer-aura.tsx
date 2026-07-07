@@ -7,6 +7,7 @@ import { type VoiceState } from '@/lib/voice-state';
 import { ReactShaderToy } from '@/components/agents-ui/react-shader-toy';
 import { useAgentAudioVisualizerAura } from '@/hooks/agents-ui/use-agent-audio-visualizer-aura';
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 const DEFAULT_COLOR = '#1FD5F9';
 
@@ -401,7 +402,7 @@ export function AgentAudioVisualizerAura({
   size = 'lg',
   state = 'connecting',
   color = DEFAULT_COLOR,
-  colorShift = 0.05,
+  colorShift = 0,
   audioTrack,
   themeMode,
   className,
@@ -414,6 +415,11 @@ export function AgentAudioVisualizerAura({
     state,
     audioTrack,
   );
+  // Follow the active theme so the shader uses its light-optimized path on cream — its dark
+  // path renders low-alpha orange that washes to pale yellow on a light bg. An explicit
+  // themeMode prop still wins. resolvedTheme is undefined until mount → dark (SSR-safe).
+  const { resolvedTheme } = useTheme();
+  const resolvedMode = themeMode ?? (resolvedTheme === 'light' ? 'light' : 'dark');
 
   return (
     <AuraShader
@@ -424,7 +430,7 @@ export function AgentAudioVisualizerAura({
       colorShift={colorShift}
       speed={speed}
       scale={scale}
-      themeMode={themeMode}
+      themeMode={resolvedMode}
       amplitude={amplitude}
       frequency={frequency}
       brightness={brightness}
