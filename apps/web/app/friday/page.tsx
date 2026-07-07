@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Shield, Sparkles } from 'lucide-react';
 import { useFriday } from '@/hooks/use-friday';
 import { FridayShell } from '@/components/friday-shell';
 import { AgentAudioVisualizerAura } from '@/components/agents-ui/agent-audio-visualizer-aura';
@@ -92,10 +93,10 @@ export default function FridayPage() {
       <div className="flex items-center gap-3">
         <div className="text-right font-mono text-[11px] leading-tight">
           <div>
-            <span className="text-friday-text-primary">{settled}</span>
-            <span className="text-friday-text-tertiary">/{tiles.length}</span>
+            <span className="text-text">{settled}</span>
+            <span className="text-text-muted">/{tiles.length}</span>
           </div>
-          <div className="text-friday-text-tertiary">
+          <div className="text-text-muted">
             {elapsed.toFixed(0)}s{errored ? ` · ${errored} err` : ''}
           </div>
         </div>
@@ -104,24 +105,25 @@ export default function FridayPage() {
             onClick={retryWithStealth}
             disabled={retrying}
             title="Retry blocked tiles with stealth"
-            className="rounded-md px-2.5 py-1 text-xs font-semibold text-orange-300 bg-orange-400/15 ring-1 ring-orange-400/40 hover:bg-orange-400/25 disabled:opacity-50 focus-ring"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-warning-tint px-2.5 py-1 text-xs font-semibold text-warning-fg transition-colors duration-200 ease-brand hover:bg-surface-2 disabled:opacity-50 focus-ring"
           >
-            {retrying ? '…' : '🛡'}
+            {retrying ? '…' : <Shield className="h-3.5 w-3.5" aria-hidden />}
           </button>
         )}
         {phase === 'done' && (
           <button
             onClick={openReport}
             disabled={retrying}
-            className="rounded-md px-2.5 py-1 text-xs font-semibold text-friday-accent bg-friday-accent/15 ring-1 ring-friday-accent/40 hover:bg-friday-accent/25 disabled:opacity-50 focus-ring"
+            className="inline-flex items-center gap-1.5 rounded-pill bg-accent px-2.5 py-1 text-xs font-semibold text-accent-fg-strong shadow-inset-top transition-[background-color,border-radius] duration-200 ease-brand hover:bg-accent-hover hover:rounded-lg disabled:opacity-50 focus-ring"
           >
-            ✦ Report
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            Report
           </button>
         )}
         <button
           onClick={resetAll}
           disabled={running || retrying}
-          className="rounded-md px-2.5 py-1 text-xs font-medium glass hover:bg-white/[0.06] disabled:opacity-40 focus-ring"
+          className="rounded-pill border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text transition-colors duration-200 ease-brand hover:bg-surface-2 disabled:opacity-40 focus-ring"
         >
           New
         </button>
@@ -137,14 +139,14 @@ export default function FridayPage() {
         {phase === 'idle' && !planning && plan.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-5 py-6 text-center">
             <AgentAudioVisualizerAura size="lg" state={orbState} color="#FF4500" />
-            <p className="text-sm text-friday-text-secondary">
+            <p className="text-sm text-text-muted">
               {voice.status === 'connected'
                 ? 'Listening… tell me what to check.'
                 : voice.status === 'connecting'
                   ? 'Connecting…'
                   : 'Tap the mic to talk, or type a task in the bar below.'}
             </p>
-            {error && <p className="text-xs text-red-400 font-mono">{error}</p>}
+            {error && <p className="font-mono text-xs text-error-fg">{error}</p>}
           </div>
         )}
 
@@ -161,8 +163,8 @@ export default function FridayPage() {
         )}
 
         {phase === 'spawning' && (
-          <div className="flex items-center gap-3 text-sm text-friday-text-secondary">
-            <div className="h-4 w-4 rounded-full border-2 border-friday-accent/30 border-t-friday-accent animate-spin" />
+          <div className="flex items-center gap-3 text-sm text-text-muted">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-border-accent border-t-accent" />
             Spawning {tiles.length || plan.length} cloud browsers…
           </div>
         )}
@@ -171,7 +173,7 @@ export default function FridayPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <AgentAudioVisualizerAura size="sm" state={orbState} color="#FF4500" />
-              <span className="font-mono text-[11px] uppercase tracking-wide text-friday-text-tertiary">
+              <span className="font-mono text-[11px] uppercase tracking-wide text-text-muted">
                 {voiceWord}
               </span>
             </div>
@@ -191,7 +193,7 @@ export default function FridayPage() {
               setTextInput('');
             }
           }}
-          className="flex items-center gap-3 p-2 glass rounded-xl"
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2 shadow-inset-top"
         >
           {!connected ? (
             // Not in a call: single button starts the voice session.
@@ -201,10 +203,10 @@ export default function FridayPage() {
               disabled={connecting}
               aria-label="Start voice session"
               title="Start voice"
-              className="flex items-center justify-center w-10 h-10 rounded-lg glass-subtle text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.08] transition-all duration-200 focus-ring disabled:opacity-50"
+              className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text transition-colors duration-200 ease-brand focus-ring disabled:opacity-50"
             >
               {connecting ? (
-                <div className="h-4 w-4 rounded-full border-2 border-friday-accent/30 border-t-friday-accent animate-spin" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-border-accent border-t-accent" />
               ) : (
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -221,10 +223,10 @@ export default function FridayPage() {
                 onClick={voice.toggleMute}
                 aria-label={voice.muted ? 'Unmute microphone' : 'Mute microphone'}
                 title={voice.muted ? 'Muted — tap to talk' : 'Mute'}
-                className={`flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 focus-ring ${
+                className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors duration-200 ease-brand focus-ring ${
                   voice.muted
-                    ? 'bg-red-500/15 text-red-300 border border-red-400/30'
-                    : 'bg-friday-accent/20 text-friday-accent shadow-glow border border-friday-accent/30'
+                    ? 'bg-error-tint text-error-fg border border-border'
+                    : 'bg-[var(--accent-pulse)] text-accent-text shadow-glow border border-border-accent'
                 }`}
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -239,7 +241,7 @@ export default function FridayPage() {
                 onClick={voice.disconnect}
                 aria-label="End voice session"
                 title="End session"
-                className="flex items-center justify-center w-10 h-10 rounded-lg glass-subtle text-friday-text-tertiary hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 focus-ring"
+                className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-surface text-text-muted hover:text-error-fg hover:bg-error-tint transition-colors duration-200 ease-brand focus-ring"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -255,14 +257,14 @@ export default function FridayPage() {
             placeholder={
               voice.status === 'connecting' ? 'Connecting…' : 'Type a task, or tap the mic to talk…'
             }
-            className="flex-1 bg-transparent text-sm text-friday-text-primary placeholder:text-friday-text-tertiary focus:outline-none font-mono selection:bg-friday-accent/30"
+            className="flex-1 bg-transparent text-sm text-text placeholder:text-text-subtle focus:outline-none font-mono selection:bg-accent selection:text-accent-fg-strong"
           />
 
           <button
             type="submit"
             disabled={!textInput.trim()}
             aria-label="Plan task"
-            className="flex items-center justify-center w-10 h-10 rounded-lg bg-friday-accent/15 text-friday-accent disabled:opacity-30 disabled:cursor-not-allowed hover:bg-friday-accent/25 transition-all duration-200 focus-ring"
+            className="flex items-center justify-center w-10 h-10 rounded-lg bg-accent text-accent-fg-strong shadow-inset-top disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent-hover active:scale-[0.98] transition-[background-color,transform] duration-200 ease-brand focus-ring"
           >
             <svg
               className="w-5 h-5"

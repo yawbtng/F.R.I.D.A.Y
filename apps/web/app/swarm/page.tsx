@@ -4,9 +4,14 @@
 // (a free-form task box that the planner turns into targets, or a KYB preset), the review
 // gate, and the focus/report modals. The hook owns spawning, the client-side fan-out, and
 // release. Runs locally for the hero clip AND deploys to Vercel unchanged.
+//
+// Chrome matches FridayShell (flat hairline bar, mono wordmark, theme toggle) so the whole app
+// reads as one surface; the body is a single centered config→grid flow (no sessions/mission-log,
+// so it isn't wrapped in the 3-panel shell). All styling reads from semantic tokens → light+dark.
 
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Shield, Sparkles } from 'lucide-react';
 import { STATE_ADAPTERS, SUPPORTED_STATES } from '@/lib/sos-adapters';
 import { buildKybTargets, planToTargets, type SwarmTarget } from '@/lib/swarm-target';
 import type { PlanTarget } from '@/lib/schemas';
@@ -16,12 +21,19 @@ import { PlanReview } from '@/components/plan-review';
 import { PlanningLoader } from '@/components/planning-loader';
 import { BrowserModal } from '@/components/browser-modal';
 import { ArtifactModal } from '@/components/artifact-modal';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 // Statuses that count as a settled answer for the header tally.
 const SETTLED = ['active', 'inactive', 'notfound', 'done'];
 
 type Mode = 'general' | 'kyb';
 type Step = 'config' | 'planning' | 'review';
+
+const labelEyebrow = 'mb-1.5 block font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted';
+const inputBase =
+  'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-subtle focus:border-border-accent focus:outline-none focus:ring-2 focus:ring-accent transition-colors duration-200 ease-brand';
+const primaryBtn =
+  'rounded-pill bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg-strong shadow-inset-top transition-[background-color,border-radius,transform] duration-200 ease-brand hover:bg-accent-hover hover:rounded-lg active:scale-[0.98] disabled:opacity-40 disabled:hover:rounded-pill focus-ring';
 
 export default function SwarmPage() {
   const swarm = useSwarm();
@@ -98,27 +110,24 @@ export default function SwarmPage() {
   const reportSubject = mode === 'kyb' ? entity : task;
 
   return (
-    <div className="min-h-screen w-full bg-friday-bg text-friday-text-primary">
-      <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
-        {/* Header */}
-        <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">
-              F.R.I.D.A.Y. <span className="text-friday-text-tertiary font-mono">// swarm</span>
-            </h1>
-            <p className="text-xs text-friday-text-tertiary">
-              Give it a task. It plans the targets, then a swarm of cloud browsers runs them in parallel.
-            </p>
-          </div>
+    <div className="min-h-screen w-full bg-bg text-text">
+      {/* Header — matches the FridayShell chrome */}
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-bg px-4 py-2.5 sm:px-6">
+        <div className="flex items-center gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-accent shadow-glow" />
+          <span className="font-mono text-xs uppercase tracking-[0.14em] text-text">F.R.I.D.A.Y.</span>
+          <span className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted">/ swarm</span>
+        </div>
 
+        <div className="flex items-center gap-3">
           {!configuring && (
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="font-mono text-sm">
-                  <span className="text-friday-text-primary">{settled}</span>
-                  <span className="text-friday-text-tertiary"> / {tiles.length} resolved</span>
+            <>
+              <div className="text-right font-mono leading-tight">
+                <div className="text-sm tabular-nums">
+                  <span className="text-text">{settled}</span>
+                  <span className="text-text-muted"> / {tiles.length} resolved</span>
                 </div>
-                <div className="font-mono text-[11px] text-friday-text-tertiary">
+                <div className="text-[11px] text-text-muted tabular-nums">
                   {elapsed.toFixed(1)}s{errored > 0 ? ` · ${errored} error` : ''}
                 </div>
               </div>
@@ -126,44 +135,49 @@ export default function SwarmPage() {
                 <button
                   onClick={swarm.retryWithStealth}
                   disabled={retrying}
-                  className="rounded-md px-3 py-1.5 text-xs font-semibold text-orange-300 bg-orange-400/15 ring-1 ring-orange-400/40 hover:bg-orange-400/25 disabled:opacity-50 focus-ring"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-warning-tint px-3 py-1.5 text-xs font-semibold text-warning-fg transition-colors duration-200 ease-brand hover:bg-surface-2 disabled:opacity-50 focus-ring"
                 >
-                  {retrying ? 'Retrying…' : '🛡 Retry blocked w/ stealth'}
+                  <Shield className="h-3.5 w-3.5" aria-hidden />
+                  {retrying ? 'Retrying…' : 'Retry blocked'}
                 </button>
               )}
               {phase === 'done' && (
                 <button
                   onClick={swarm.openReport}
                   disabled={retrying}
-                  className="rounded-md px-3 py-1.5 text-xs font-semibold text-friday-accent bg-friday-accent/15 ring-1 ring-friday-accent/40 hover:bg-friday-accent/25 disabled:opacity-50 focus-ring"
+                  className="inline-flex items-center gap-1.5 rounded-pill bg-accent px-3 py-1.5 text-xs font-semibold text-accent-fg-strong shadow-inset-top transition-[background-color,border-radius] duration-200 ease-brand hover:bg-accent-hover hover:rounded-lg disabled:opacity-50 focus-ring"
                 >
-                  ✦ Report
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  Report
                 </button>
               )}
               <button
                 onClick={resetAll}
                 disabled={running || retrying}
-                className="rounded-md px-3 py-1.5 text-xs font-medium glass hover:bg-white/[0.06] disabled:opacity-40 focus-ring"
+                className="rounded-pill border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text transition-colors duration-200 ease-brand hover:bg-surface-2 disabled:opacity-40 focus-ring"
               >
                 New run
               </button>
-            </div>
+            </>
           )}
-        </header>
+          <ThemeToggle />
+        </div>
+      </header>
 
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
         {/* Config: task box (general) or KYB preset */}
         {configuring && step === 'config' && (
-          <div className="glass-heavy rounded-xl p-5 max-w-2xl">
+          <div className="max-w-2xl rounded-lg border border-border bg-surface p-5 shadow-inset-top">
             {/* Mode toggle */}
-            <div className="mb-4 flex gap-2">
+            <div className="mb-5 flex gap-2">
               {(['general', 'kyb'] as Mode[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-ring ${
+                  className={`rounded-pill px-3 py-1.5 text-xs font-medium transition-colors duration-200 ease-brand focus-ring ${
                     mode === m
-                      ? 'bg-friday-accent/15 text-friday-accent ring-1 ring-friday-accent/40'
-                      : 'glass text-friday-text-secondary hover:text-friday-text-primary'
+                      ? 'bg-accent text-accent-fg-strong'
+                      : 'border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text'
                   }`}
                 >
                   {m === 'general' ? 'General task' : 'Verify business × states'}
@@ -173,53 +187,49 @@ export default function SwarmPage() {
 
             {mode === 'general' ? (
               <>
-                <label className="block text-xs font-medium text-friday-text-secondary mb-1.5">
-                  What should F.R.I.D.A.Y. check across the web?
-                </label>
+                <label className={labelEyebrow}>What should F.R.I.D.A.Y. check across the web?</label>
                 <textarea
                   value={task}
                   onChange={(e) => setTask(e.target.value)}
                   rows={3}
                   placeholder="e.g. Check if these 12 vendors are real, registered businesses: …"
-                  className="w-full resize-none rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm focus-ring placeholder:text-friday-text-tertiary"
+                  className={`resize-none ${inputBase}`}
                 />
 
-                <label className="mt-3 flex items-center gap-2 text-xs text-friday-text-secondary cursor-pointer select-none">
+                <label className="mt-3 flex cursor-pointer select-none items-center gap-2 text-xs text-text-muted">
                   <input
                     type="checkbox"
                     checked={autoRun}
                     onChange={(e) => setAutoRun(e.target.checked)}
-                    className="accent-friday-accent"
+                    className="accent-accent"
                   />
                   Just run it (skip the review step)
                 </label>
 
-                {planError && <p className="mt-4 text-xs text-red-400 font-mono">{planError}</p>}
+                {planError && <p className="mt-4 font-mono text-xs text-error-fg">{planError}</p>}
 
-                <button
-                  onClick={planTask}
-                  disabled={!task.trim()}
-                  className="mt-4 rounded-lg bg-friday-accent/20 px-5 py-2.5 text-sm font-semibold text-friday-accent ring-1 ring-friday-accent/40 hover:bg-friday-accent/30 disabled:opacity-40 focus-ring"
-                >
+                <button onClick={planTask} disabled={!task.trim()} className={`mt-4 ${primaryBtn}`}>
                   {autoRun ? 'Plan & run →' : 'Plan →'}
                 </button>
               </>
             ) : (
               <>
-                <label className="block text-xs font-medium text-friday-text-secondary mb-1.5">Entity name</label>
+                <label className={labelEyebrow}>Entity name</label>
                 <input
                   value={entity}
                   onChange={(e) => setEntity(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && runKyb()}
                   placeholder="e.g. Tesla, Inc."
-                  className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm font-mono focus-ring placeholder:text-friday-text-tertiary"
+                  className={`font-mono ${inputBase}`}
                 />
 
-                <div className="mt-4 mb-1.5 flex items-center justify-between">
-                  <label className="text-xs font-medium text-friday-text-secondary">States ({selected.length})</label>
+                <div className="mb-1.5 mt-4 flex items-center justify-between">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
+                    States ({selected.length})
+                  </span>
                   <button
                     onClick={() => setSelected(selected.length === SUPPORTED_STATES.length ? [] : SUPPORTED_STATES)}
-                    className="text-[11px] text-friday-accent hover:underline"
+                    className="text-[11px] text-accent-text hover:underline focus-ring"
                   >
                     {selected.length === SUPPORTED_STATES.length ? 'Clear' : 'Select all'}
                   </button>
@@ -231,10 +241,10 @@ export default function SwarmPage() {
                       <button
                         key={s}
                         onClick={() => toggle(s)}
-                        className={`rounded-md px-3 py-1.5 text-xs font-mono transition-colors focus-ring ${
+                        className={`rounded-md px-3 py-1.5 font-mono text-xs transition-colors duration-200 ease-brand focus-ring ${
                           on
-                            ? 'bg-friday-accent/15 text-friday-accent ring-1 ring-friday-accent/40'
-                            : 'glass text-friday-text-secondary hover:text-friday-text-primary'
+                            ? 'border border-border-accent bg-[var(--accent-pulse)] text-accent-text'
+                            : 'border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text'
                         }`}
                       >
                         {s} · {STATE_ADAPTERS[s].name}
@@ -243,12 +253,12 @@ export default function SwarmPage() {
                   })}
                 </div>
 
-                {error && <p className="mt-4 text-xs text-red-400 font-mono">{error}</p>}
+                {error && <p className="mt-4 font-mono text-xs text-error-fg">{error}</p>}
 
                 <button
                   onClick={runKyb}
                   disabled={!entity.trim() || selected.length === 0}
-                  className="mt-5 rounded-lg bg-friday-accent/20 px-5 py-2.5 text-sm font-semibold text-friday-accent ring-1 ring-friday-accent/40 hover:bg-friday-accent/30 disabled:opacity-40 focus-ring"
+                  className={`mt-5 ${primaryBtn}`}
                 >
                   Run swarm → {selected.length} browser{selected.length === 1 ? '' : 's'}
                 </button>
@@ -278,8 +288,8 @@ export default function SwarmPage() {
 
         {/* Spawning */}
         {phase === 'spawning' && (
-          <div className="flex items-center gap-3 text-sm text-friday-text-secondary">
-            <div className="w-4 h-4 border-2 border-friday-accent/30 border-t-friday-accent rounded-full animate-spin" />
+          <div className="flex items-center gap-3 text-sm text-text-muted">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-border-accent border-t-accent" />
             Spawning {tiles.length || plan.length} cloud browsers…
           </div>
         )}
