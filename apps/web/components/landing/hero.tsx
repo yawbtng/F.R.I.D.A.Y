@@ -112,12 +112,11 @@ export function Hero() {
           </a>
         </motion.div>
 
-        <motion.div
-          variants={riseAndFade}
-          className="mt-10 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted"
-        >
-          <BrowserbaseMark className="h-3.5 w-3.5" />
-          Built on Browserbase
+        <motion.div variants={riseAndFade} className="mt-12 inline-flex items-center gap-3">
+          <BrowserbaseMark className="h-9 w-9" />
+          <span className="font-mono text-2xl font-semibold tracking-tight text-text">
+            <span className="font-normal text-text-muted">Built on </span>Browserbase
+          </span>
         </motion.div>
       </motion.div>
     </section>
