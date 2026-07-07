@@ -119,14 +119,14 @@
 .light {
   color-scheme: light;
 
-  --bg: #F4F1EC;             /* warm cream canvas */
-  --surface: #FFFFFF;        /* white cards float on cream */
-  --surface-2: #FAF8F4;
-  --surface-accent: #E2E9F3; /* periwinkle hero */
-  --surface-sunken: #EFEBE3;
+  --bg: #FAFAF8;             /* near-white canvas — Browserbase reads white, not cream */
+  --surface: #FFFFFF;        /* white cards on the near-white canvas */
+  --surface-2: #F2F2EF;      /* subtle raised / hover */
+  --surface-accent: #E2E9F3; /* periwinkle hero tint (kept) */
+  --surface-sunken: #EEEEEA;
 
-  --border: #E7E1D6;
-  --border-strong: #D6CFC2;
+  --border: #E6E4DF;         /* light neutral hairline (was warm cream) */
+  --border-strong: #D5D3CD;
   --border-accent: #FF4500;
 
   --text: #260F17;           /* ink plum */
