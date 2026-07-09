@@ -56,35 +56,6 @@
 
   --ease: cubic-bezier(0.3, 0, 0.15, 1);
 
-  /* =========================================================
-     Legacy friday-* vars → remapped onto the new tokens.
-     (These names are consumed by tailwind.config's friday.* colors.)
-     ========================================================= */
-  --bg-primary: var(--bg);
-  --bg-secondary: var(--surface-2);
-  --bg-tertiary: var(--surface-2);
-  --bg-elevated: var(--surface);
-  --bg-surface: var(--surface);
-
-  --border-default: var(--border);
-  --border-active: var(--accent);
-  --border-subtle: var(--border);
-  --border-hover: var(--border-strong);
-
-  --text-primary: var(--text);
-  --text-secondary: var(--text-muted);
-  --text-accent: var(--accent-text);
-
-  --accent-primary: var(--accent);
-
-  --status-success: var(--success);
-  --status-error: var(--error);
-  --status-warning: var(--warning);
-  --status-info: var(--info);
-
-  --visualizer-glow: var(--accent-glow);
-  --friday-pulse: var(--accent-pulse);
-
   /* --- glass (theme-aware; dark keeps the existing subtle frosted look) --- */
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-bg-subtle: rgba(255, 255, 255, 0.03);

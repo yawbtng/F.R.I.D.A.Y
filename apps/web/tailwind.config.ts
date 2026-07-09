@@ -9,31 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        friday: {
-          bg: 'var(--bg-primary)',
-          surface: 'var(--bg-surface)',
-          secondary: 'var(--bg-secondary)',
-          tertiary: 'var(--bg-tertiary)',
-          elevated: 'var(--bg-elevated)',
-          border: 'var(--border-default)',
-          'border-hover': 'var(--border-hover)',
-          'border-active': 'var(--border-active)',
-          'border-subtle': 'var(--border-subtle)',
-          accent: 'var(--accent-primary)',
-          'accent-hover': 'var(--accent-hover)',
-          'accent-glow': 'var(--accent-glow)',
-          'text-primary': 'var(--text-primary)',
-          'text-secondary': 'var(--text-secondary)',
-          'text-muted': 'var(--text-muted)',
-          'text-tertiary': 'var(--text-muted)',
-          'text-accent': 'var(--text-accent)',
-          active: 'var(--status-success)',
-          error: 'var(--status-error)',
-          pending: 'var(--status-warning)',
-          info: 'var(--status-info)',
-        },
-
-        /* --- Browserbase-native semantic tokens (Phase 2 migration target) --- */
+        /* --- Browserbase-native semantic tokens --- */
         bg: 'var(--bg)',
         surface: 'var(--surface)',
         'surface-2': 'var(--surface-2)',
