@@ -20,7 +20,7 @@ export function ThemeToggle() {
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={mounted ? (isDark ? 'Switch to light mode' : 'Switch to dark mode') : 'Toggle theme'}
       title={mounted ? (isDark ? 'Light mode' : 'Dark mode') : 'Toggle theme'}
-      className="flex items-center justify-center w-8 h-8 rounded-md text-friday-text-secondary hover:text-friday-text-primary hover:bg-friday-tertiary transition-colors duration-150 ease-out focus-ring"
+      className="flex items-center justify-center w-8 h-8 rounded-md text-text-muted hover:text-text hover:bg-surface-2 transition-colors duration-150 ease-brand focus-ring"
     >
       {/* Before mount, render a stable icon; after mount, show the one for the CURRENT theme. */}
       {mounted && !isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}

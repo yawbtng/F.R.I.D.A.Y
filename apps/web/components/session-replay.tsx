@@ -78,24 +78,24 @@ export function SessionReplay({
         autoPlay
         muted
         playsInline
-        className={`absolute inset-0 w-full h-full bg-friday-bg object-contain ${state === 'ready' ? '' : 'opacity-0'}`}
+        className={`absolute inset-0 w-full h-full bg-surface-sunken object-contain ${state === 'ready' ? '' : 'opacity-0'}`}
       />
       {/* Poster fallback while loading / when no replay exists */}
       {state !== 'ready' &&
         (poster ? (
           <img src={poster} alt="result" className="absolute inset-0 w-full h-full object-contain" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-friday-text-tertiary text-sm font-mono">
+          <div className="absolute inset-0 flex items-center justify-center text-text-muted text-sm font-mono">
             no preview
           </div>
         ))}
       {state === 'loading' && (
-        <div className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-mono text-friday-text-tertiary">
+        <div className="absolute bottom-2 left-2 rounded bg-[var(--scrim)] px-2 py-0.5 text-[10px] font-mono text-text-muted">
           loading replay…
         </div>
       )}
       {state === 'unavailable' && (
-        <div className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-mono text-friday-text-tertiary">
+        <div className="absolute bottom-2 left-2 rounded bg-[var(--scrim)] px-2 py-0.5 text-[10px] font-mono text-text-muted">
           replay not ready
         </div>
       )}
