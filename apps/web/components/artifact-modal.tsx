@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, Network } from 'lucide-react';
 import { STATUS_META, hostOf, type TileState } from './grid-tile';
+import { MermaidDiagram } from './mermaid-diagram';
 import {
   buildReport,
   donutSvg,
@@ -159,12 +160,18 @@ export function ArtifactModal({
   items,
   narrative,
   loading,
+  diagram,
+  diagramLoading,
+  onVisualize,
   onClose,
 }: {
   task: string;
   items: ReportItem[];
   narrative: ReportNarrative | null;
   loading: boolean;
+  diagram?: { title: string; kind: string; mermaid: string } | null;
+  diagramLoading?: boolean;
+  onVisualize?: () => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -229,6 +236,11 @@ export function ArtifactModal({
             </div>
           </div>
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            {onVisualize && (
+              <button onClick={onVisualize} className={btn} title="Generate a diagram" disabled={diagramLoading}>
+                <Network className="h-3.5 w-3.5" /> {diagramLoading ? 'Drawing…' : 'Diagram'}
+              </button>
+            )}
             <button onClick={downloadMarkdown} className={btn} title="Download Markdown">
               <Download className="h-3.5 w-3.5" /> Markdown
             </button>
@@ -268,6 +280,23 @@ export function ArtifactModal({
               <StatusBar byStatus={model.counts.byStatus} total={model.counts.total} />
             </div>
           </div>
+
+          {/* Agent-authored / on-demand diagram (renders when present or while generating) */}
+          {(diagram || diagramLoading) && (
+            <div>
+              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                {diagram?.title || 'Diagram'}
+                {diagram?.kind ? <span className="text-text-subtle"> · {diagram.kind}</span> : null}
+              </h3>
+              {diagram ? (
+                <div className="rounded-md border border-border bg-surface-2 p-3">
+                  <MermaidDiagram source={diagram.mermaid} className="text-text" />
+                </div>
+              ) : (
+                <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+              )}
+            </div>
+          )}
 
           {/* AI headline (or synthesis loader) */}
           <div className="min-h-[1.25rem]">

@@ -75,6 +75,19 @@ export const realtimeTools = {
       idOrLabel: z.string().describe("The target id or label to focus, e.g. 'Acme Corp'."),
     }),
   }),
+
+  renderDiagram: tool({
+    description:
+      "Draw a diagram in the report when a picture makes the findings clearer — how the swarm fanned out across targets, how results relate, a breakdown, or a flow. YOU write the Mermaid source and pick the diagram type that fits the task. Call after a run when a visual would help, or when the user asks to diagram / visualize / chart something. Don't diagram a plain short list.",
+    inputSchema: z.object({
+      title: z.string().describe("Short title for the diagram."),
+      mermaid: z
+        .string()
+        .describe(
+          "Valid Mermaid v11 source. First line is the directive (e.g. 'flowchart LR'). Put node text in double quotes, keep labels short, use simple ids (n1, n2), and never put parentheses/brackets/quotes inside a label — so it parses.",
+        ),
+    }),
+  }),
 };
 
 /** The tool names the client dispatch table must handle. */

@@ -18,6 +18,8 @@ export function useFriday() {
   const [planTitle, setPlanTitle] = useState("");
   const [planNotes, setPlanNotes] = useState<string[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  // Agent-authored (or button-generated) diagram for the report. Both paths land here.
+  const [diagram, setDiagram] = useState<{ title: string; kind: string; mermaid: string } | null>(null);
 
   // Refs so the (stable) dispatch always reads current state without re-subscribing the
   // realtime session on every render.
@@ -99,10 +101,34 @@ export function useFriday() {
         return { focused: tile.label };
       }
 
+      case "renderDiagram": {
+        const { title, mermaid } = (args ?? {}) as { title?: string; mermaid?: string };
+        if (!mermaid) return { error: "no diagram source" };
+        setDiagram({ title: title ?? "Diagram", kind: "", mermaid });
+        s.openReport(); // surface the report so the diagram is visible
+        return { rendered: true };
+      }
+
       default:
         return { error: `unknown tool ${toolName}` };
     }
   }, [planFromTask]);
+
+  // No-voice path for the report modal's "Diagram" button: generate a Mermaid diagram from the
+  // finished run and drop it into the SAME diagram state the voice renderDiagram tool feeds.
+  const visualize = useCallback(async (hint?: string) => {
+    const s = swarmRef.current;
+    const results = s.tiles.map((t) => ({ label: t.label, status: t.status, result: t.result }));
+    if (results.length === 0) throw new Error("nothing to diagram yet");
+    const res = await fetch("/api/swarm/diagram", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: titleRef.current, results, ...(hint ? { hint } : {}) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "diagram failed");
+    setDiagram({ title: data.title ?? "Diagram", kind: data.kind ?? "", mermaid: data.mermaid ?? "" });
+  }, []);
 
   const voice = useVoice({ instructions: FRIDAY_INSTRUCTIONS, onToolCall: dispatch });
 
@@ -161,6 +187,7 @@ export function useFriday() {
     setPlanTitle("");
     setPlanNotes([]);
     setFocusedId(null);
+    setDiagram(null);
   }, []);
 
   return {
@@ -173,6 +200,9 @@ export function useFriday() {
     planNotes,
     focusedId,
     setFocusedId,
+    diagram,
+    setDiagram,
+    visualize,
     resetAll,
   };
 }
