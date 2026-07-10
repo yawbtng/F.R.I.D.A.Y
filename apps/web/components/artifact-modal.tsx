@@ -6,6 +6,7 @@ import { Download, Printer } from 'lucide-react';
 import { STATUS_META, hostOf, type TileState } from './grid-tile';
 import {
   buildReport,
+  donutSvg,
   reportToMarkdown,
   reportToPrintableHtml,
   RESOLVED_STATUSES,
@@ -54,6 +55,29 @@ const TONE_FG: Record<StatusTone, string> = {
   error: 'text-error-fg',
   neutral: 'text-neutral-fg',
 };
+
+const TONE_VAR: Record<StatusTone, string> = {
+  success: 'var(--success)',
+  warning: 'var(--warning)',
+  error: 'var(--error)',
+  neutral: 'var(--neutral)',
+};
+
+/** At-a-glance donut of the per-status proportions; center reads resolved/total. Reuses the pure
+ *  donutSvg (shared with the PDF export) with theme-aware CSS-var fills, so it re-colors in
+ *  light/dark for free. The SVG string is ours (numbers + token vars), so inlining it is safe. */
+function StatusDonut({ byStatus, resolved, total }: { byStatus: Record<string, number>; resolved: number; total: number }) {
+  if (total === 0) return null;
+  const svg = donutSvg(byStatus, (s) => TONE_VAR[toneOf(s)], {
+    size: 104,
+    stroke: 14,
+    center: String(resolved),
+    sub: `of ${total}`,
+    track: 'var(--surface-2)',
+    label: `${resolved} of ${total} resolved`,
+  });
+  return <div className="shrink-0 text-text" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
 
 /** At-a-glance chart: a segmented proportion bar of the per-status counts (colors from the
  *  status token palette). Deterministic from the report data — always renders, no dependency. */
@@ -225,26 +249,25 @@ export function ArtifactModal({
 
         {/* Body */}
         <div className="overflow-y-auto px-4 py-4 space-y-4">
-          {/* Counts band */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-            <span className="text-sm font-mono">
-              <span className="text-text font-semibold">{model.counts.resolved}</span>
-              <span className="text-text-muted"> / {model.counts.total} resolved</span>
-            </span>
-            {Object.entries(model.counts.byStatus).map(([s, n]) => {
-              const meta = metaFor(s);
-              const tone = toneOf(s);
-              return (
-                <span key={s} className={`flex items-center gap-1 text-[11px] ${TONE_FG[tone]}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${TONE_DOT[tone]}`} />
-                  {n} {meta.label.toLowerCase()}
-                </span>
-              );
-            })}
+          {/* At-a-glance: donut focal + legend + proportion bar (donut center = resolved/total) */}
+          <div className="flex items-center gap-4">
+            <StatusDonut byStatus={model.counts.byStatus} resolved={model.counts.resolved} total={model.counts.total} />
+            <div className="min-w-0 flex-1 space-y-2.5">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                {Object.entries(model.counts.byStatus).map(([s, n]) => {
+                  const meta = metaFor(s);
+                  const tone = toneOf(s);
+                  return (
+                    <span key={s} className={`flex items-center gap-1 text-[11px] ${TONE_FG[tone]}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${TONE_DOT[tone]}`} />
+                      {n} {meta.label.toLowerCase()}
+                    </span>
+                  );
+                })}
+              </div>
+              <StatusBar byStatus={model.counts.byStatus} total={model.counts.total} />
+            </div>
           </div>
-
-          {/* At-a-glance chart */}
-          <StatusBar byStatus={model.counts.byStatus} total={model.counts.total} />
 
           {/* AI headline (or synthesis loader) */}
           <div className="min-h-[1.25rem]">
