@@ -22,7 +22,7 @@ export const realtimeTools = {
 
   updatePlan: tool({
     description:
-      "Edit the current plan before running: add, remove, reorder, or rewrite targets. Call whenever the user asks to change the plan by voice ('drop Walmart', 'add Costco', 'check its license status too').",
+      "Edit the current plan BEFORE the swarm launches: add, remove, reorder, or rewrite targets ('drop Walmart', 'add Costco', 'check its license status too'). Once the swarm is running, changing one target is retargetTile's job, not this — updatePlan cannot touch live browsers.",
     inputSchema: z.object({
       operations: z
         .array(
@@ -73,6 +73,25 @@ export const realtimeTools = {
       "Open the live browser view for one target so the user can watch it. Call when the user says 'show me X' or 'pull up the Acme one'.",
     inputSchema: z.object({
       idOrLabel: z.string().describe("The target id or label to focus, e.g. 'Acme Corp'."),
+    }),
+  }),
+
+  retargetTile: tool({
+    description:
+      "Redirect ONE browser to a different target WITHOUT restarting the swarm — call when the user changes their mind about a single target ('actually, check Costco instead of Walmart', 'have the Texas one look up the LLC filing instead'). The other browsers keep working; only that slot gets a fresh browser pointed at the new thing. Returns immediately — you'll get a [status] note when the redirected browser settles.",
+    inputSchema: z.object({
+      idOrLabel: z
+        .string()
+        .describe("Which existing target to replace, by id or display label, e.g. 'Walmart'."),
+      label: z.string().nullable().describe("New display name, e.g. 'Costco'; null to keep."),
+      goal: z
+        .string()
+        .nullable()
+        .describe("New instruction for that browser's page; null to keep the old goal."),
+      extract: z
+        .string()
+        .nullable()
+        .describe("New one-question extraction; null to keep the old one."),
     }),
   }),
 

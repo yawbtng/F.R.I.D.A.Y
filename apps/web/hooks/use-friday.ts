@@ -63,6 +63,15 @@ export function useFriday() {
       }
 
       case "updatePlan": {
+        // Semantics enforced here, not by model discipline: once browsers are live, editing
+        // the plan list is a silent no-op (it never touches running tiles). Bounce the model
+        // to retargetTile — realtime models self-correct well on corrective tool errors.
+        if (s.phase === "spawning" || s.phase === "running") {
+          return {
+            error:
+              "swarm already launched — updatePlan cannot change live browsers; call retargetTile with the target to replace",
+          };
+        }
         const { operations } = (args ?? {}) as { operations?: PlanOp[] };
         const next = applyPlanOps(planRef.current, operations ?? []);
         setPlan(next);
@@ -99,6 +108,42 @@ export function useFriday() {
         if (!tile) return { error: `no target named ${idOrLabel}` };
         setFocusedId(tile.id);
         return { focused: tile.label };
+      }
+
+      case "retargetTile": {
+        const { idOrLabel, label, goal, extract } = (args ?? {}) as {
+          idOrLabel?: string;
+          label?: string | null;
+          goal?: string | null;
+          extract?: string | null;
+        };
+        if (!idOrLabel) return { error: "no target specified" };
+        const known = s.tiles.some(
+          (t) => t.id === idOrLabel || t.label.toLowerCase() === idOrLabel.toLowerCase(),
+        );
+        if (!known) return { error: `no target named ${idOrLabel}` };
+        // Fire and DO NOT await (same contract as runSwarm): the redirect drives a full
+        // browser run (~a minute) while a realtime tool call must return in seconds. The
+        // settled outcome comes back through the [status] narration channel below.
+        void s
+          .retarget(idOrLabel, {
+            ...(label ? { label } : {}),
+            ...(goal ? { goal } : {}),
+            ...(extract ? { extract } : {}),
+          })
+          .then((r) =>
+            voiceRef.current.sendTextMessage(
+              `[status] Retargeted ${r.label}: ${r.status}${r.result ? ` — ${r.result}` : ""}. Tell the user what came back.`,
+            ),
+          )
+          .catch((e) =>
+            voiceRef.current.sendTextMessage(
+              `[status] Retarget of ${idOrLabel} failed: ${
+                e instanceof Error ? e.message : "unknown error"
+              }. Tell the user.`,
+            ),
+          );
+        return { retargeting: idOrLabel, message: "old browser dropped — fresh one spinning up on the new target" };
       }
 
       case "renderDiagram": {

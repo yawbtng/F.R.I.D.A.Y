@@ -13,13 +13,19 @@
 // response-done / function-call-arguments-delta / function-call-arguments-done / error / ...).
 //
 // Tests:
-//   A (date):  "What is today's date?" → PASS if transcript contains current year+month.
-//   B (tools): "Check whether Tesla is a registered business." → PASS if a
-//              function-call-arguments-done for planTask arrives.
+//   A (date):     "What is today's date?" → PASS if transcript contains current year+month.
+//   B (tools):    "Check whether Tesla is a registered business." → PASS if a
+//                 function-call-arguments-done for planTask arrives.
+//   C (retarget): completes B's tool round-trip (synthetic plan output: Tesla + Walmart),
+//                 simulates the launched swarm (runSwarm output), then says "actually,
+//                 check Costco instead of Walmart" → PASS if retargetTile is called.
+//                 Synthetic outputs only — no real browsers are ever spawned.
 //
 // Run:  agent/node_modules/.bin/tsx apps/web/scripts/probe-realtime.ts [--no-instructions]
 //   --no-instructions = CONTROL run: session-update omits instructions, to distinguish
 //   "gateway rejected config" from "model ignores config".
+//   --bad-modalities  = REGRESSION run: send the old invalid ["audio","text"] modalities
+//   (rejected atomically — voids persona + tools; the original 07-17 bug).
 //
 // Uses Node >= 22 built-in WebSocket. Never prints env/key values (token from the route is a
 // short-lived ephemeral client token; we do not print it either).
@@ -29,11 +35,11 @@ import { dirname } from "node:path";
 import { buildFridayInstructions } from "../lib/friday-persona";
 
 const NO_INSTRUCTIONS = process.argv.includes("--no-instructions");
-// --audio-only: send outputModalities ["audio"] instead of the app's ["audio","text"].
-// The gateway/OpenAI rejects ['audio','text'] (session.update error: only ['text'] OR
-// ['audio'] supported), which silently voids the ENTIRE config. This flag proves the fix.
-const AUDIO_ONLY = process.argv.includes("--audio-only");
-const RUN_LABEL = `${NO_INSTRUCTIONS ? "control-no-instructions" : "instructed"}${AUDIO_ONLY ? "-audio-only" : ""}`;
+// Default mirrors the FIXED app config: outputModalities ["audio"]. --bad-modalities
+// reproduces the original bug — ['audio','text'] is invalid (only ['text'] OR ['audio']),
+// and the rejection silently voids the ENTIRE session.update (persona + all tools).
+const BAD_MODALITIES = process.argv.includes("--bad-modalities");
+const RUN_LABEL = `${NO_INSTRUCTIONS ? "control-no-instructions" : "instructed"}${BAD_MODALITIES ? "-bad-modalities" : ""}`;
 const TOKEN_URL = "http://localhost:3001/api/realtime/token";
 const LOG_PATH =
   "/private/tmp/claude-501/-Users-yawbt-Documents-GitHub-Browserbase/0f273fea-01e6-45dc-8bdd-f6a73459c415/probe-events.jsonl";
@@ -76,7 +82,17 @@ function onServerEvent(e: ServerEvent): void {
 }
 
 function waitFor(predicate: (e: ServerEvent) => boolean, timeoutMs: number): Promise<ServerEvent | null> {
-  const already = received.find(predicate);
+  return waitForNew(0, predicate, timeoutMs);
+}
+
+/** Like waitFor, but ignores events buffered before startIndex — needed once multiple
+ *  phases await the SAME event type (e.g. a second function-call-arguments-done). */
+function waitForNew(
+  startIndex: number,
+  predicate: (e: ServerEvent) => boolean,
+  timeoutMs: number,
+): Promise<ServerEvent | null> {
+  const already = received.slice(startIndex).find(predicate);
   if (already) return Promise.resolve(already);
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -100,6 +116,7 @@ async function main(): Promise<void> {
     CONFIG_ACK: "no" as string,
     DATE_TEST: "fail(no response)" as string,
     TOOL_TEST: "fail(no tool call)" as string,
+    RETARGET_TEST: "skipped(no planTask call in TEST B)" as string,
   };
 
   // 1. Mint via the app's real token route.
@@ -111,7 +128,7 @@ async function main(): Promise<void> {
   });
   const sessionConfig: Record<string, unknown> = {
     voice: "marin",
-    outputModalities: AUDIO_ONLY ? ["audio"] : ["audio", "text"],
+    outputModalities: BAD_MODALITIES ? ["audio", "text"] : ["audio"],
     turnDetection: {
       type: "server-vad",
       threshold: 0.5,
@@ -257,7 +274,102 @@ async function main(): Promise<void> {
     summary.TOOL_TEST = `fail(no function-call event in 30s; model said: "${spokenInstead || "<nothing>"}")`;
   }
 
-  // Do NOT execute tools — just disconnect.
+  // ── TEST C: single-tile retarget mid-run ───────────────────────────
+  // Completes the tool round-trip TEST B opened (synthetic plan output), simulates the
+  // launched swarm, then changes ONE target by text. PASS = the model reaches for
+  // retargetTile (updatePlan would be the pre-run tool; the swarm is "running" here).
+  // All tool outputs are synthetic — no real browsers are spawned by this probe.
+  if (toolCall) {
+    const answerCall = (call: ServerEvent, output: Record<string, unknown>) => {
+      send({
+        type: "conversation-item-create",
+        item: {
+          type: "function-call-output",
+          callId: String((call as { callId?: unknown }).callId ?? ""),
+          name: String((call as { name?: unknown }).name ?? ""),
+          output: JSON.stringify(output),
+        },
+      });
+      send({ type: "response-create" });
+    };
+
+    // 1. Answer TEST B's planTask with a two-target plan.
+    let idx = received.length;
+    answerCall(toolCall, {
+      title: "Verify Tesla and Walmart are registered businesses",
+      count: 2,
+      targets: [
+        { id: "tesla", label: "Tesla" },
+        { id: "walmart", label: "Walmart" },
+      ],
+      message: "plan ready — 2 targets",
+    });
+    await waitForNew(idx, (e) => e.type === "response-done", PHASE_TIMEOUT_MS);
+
+    // 2. Green-light the run; whatever tool it calls (expected: runSwarm), answer as launched
+    //    so nothing dangles before the retarget ask.
+    send({
+      type: "conversation-item-create",
+      item: { type: "text-message", role: "user", text: "Yes, run it." },
+    });
+    send({ type: "response-create" });
+    idx = received.length;
+    const runCall = await waitForNew(
+      idx,
+      (e) => e.type === "function-call-arguments-done",
+      PHASE_TIMEOUT_MS,
+    );
+    if (runCall) {
+      idx = received.length;
+      answerCall(runCall, { runId: "run-1", count: 2, message: "swarm launched" });
+      await waitForNew(idx, (e) => e.type === "response-done", PHASE_TIMEOUT_MS);
+    }
+
+    // 3. The change of mind — the moment under test.
+    send({
+      type: "conversation-item-create",
+      item: {
+        type: "text-message",
+        role: "user",
+        text: "Actually, change of plan — check Costco instead of Walmart. Keep Tesla going.",
+      },
+    });
+    send({ type: "response-create" });
+    idx = received.length;
+    let rt = await waitForNew(
+      idx,
+      (e) => e.type === "function-call-arguments-done",
+      PHASE_TIMEOUT_MS,
+    );
+    let redirected = false;
+    // Production loop: dispatch bounces a mid-run updatePlan with a corrective error
+    // (use-friday guards on phase). Answer with the SAME error and expect self-correction.
+    if (rt && String((rt as { name?: unknown }).name ?? "") === "updatePlan") {
+      redirected = true;
+      idx = received.length;
+      answerCall(rt, {
+        error:
+          "swarm already launched — updatePlan cannot change live browsers; call retargetTile with the target to replace",
+      });
+      rt = await waitForNew(
+        idx,
+        (e) => e.type === "function-call-arguments-done",
+        PHASE_TIMEOUT_MS,
+      );
+    }
+    if (rt) {
+      const name = String((rt as { name?: unknown }).name ?? "");
+      summary.RETARGET_TEST =
+        name === "retargetTile"
+          ? `pass${redirected ? "-after-redirect" : ""}(${JSON.stringify(rt)})`
+          : `partial(called ${name} instead: ${JSON.stringify(rt)})`;
+    } else {
+      await sleep(500);
+      summary.RETARGET_TEST = `fail(no function call${redirected ? " after redirect" : ""}; model said: "${extractResponseText().slice(-200).trim()}")`;
+    }
+  }
+
+  // Synthetic outputs only above — nothing real was executed. Disconnect.
   if (!closed) ws.close();
   printSummary(summary);
   process.exit(0);
@@ -280,20 +392,26 @@ async function main(): Promise<void> {
   }
 }
 
-function printSummary(s: { CONFIG_ACK: string; DATE_TEST: string; TOOL_TEST: string }): void {
+function printSummary(s: {
+  CONFIG_ACK: string;
+  DATE_TEST: string;
+  TOOL_TEST: string;
+  RETARGET_TEST: string;
+}): void {
   console.log("\n================ PROBE SUMMARY (" + RUN_LABEL + ") ================");
-  console.log("CONFIG_ACK: " + s.CONFIG_ACK);
-  console.log("DATE_TEST:  " + s.DATE_TEST);
-  console.log("TOOL_TEST:  " + s.TOOL_TEST);
+  console.log("CONFIG_ACK:    " + s.CONFIG_ACK);
+  console.log("DATE_TEST:     " + s.DATE_TEST);
+  console.log("TOOL_TEST:     " + s.TOOL_TEST);
+  console.log("RETARGET_TEST: " + s.RETARGET_TEST);
   console.log("Event log:  " + LOG_PATH);
   console.log("================================================================");
 }
 
-// Hard kill at 2.5 min so we never hang.
+// Hard kill at 4 min so we never hang (TEST C adds ~3 more model turns).
 setTimeout(() => {
-  console.log("FATAL: total runtime cap (150s) hit; exiting.");
+  console.log("FATAL: total runtime cap (240s) hit; exiting.");
   process.exit(2);
-}, 150_000).unref();
+}, 240_000).unref();
 
 main().catch((err) => {
   console.error("FATAL:", err instanceof Error ? err.message : err);
