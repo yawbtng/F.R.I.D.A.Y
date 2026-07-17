@@ -31,8 +31,12 @@ test-run logs, not guesses.
 - [x] P2: Fixed — use-voice.ts outputModalities → ["audio"]; error events now
       logged loudly in onEvent (they arrive post-"connected", where onError
       deliberately ignores them — that's why the rejection was invisible)
-- [ ] P3: Swarm reliability — fast CAPTCHA/blocked detection (no 45s grind),
-      guard awaitActivePage null crash, gate Convex persistence noise
+- [x] P3: Swarm reliability — DONE, live-tested (3 sessions, 0 left running):
+      dead-session eviction in getStagehand + SESSION_LOST fail-fast in agent
+      route (dead-session calls now settle in ~0.2-1.3s clean 500s vs endless
+      null-crash 200s); nav-time BOT_WALL fingerprint + act-error sniffing →
+      instant 'blocked' settle, extract pass skipped; isBlocked knows
+      turnstile; Convex circuit breaker (one warning, then quiet)
 - [ ] P4: End-to-end demo dry-run (proxies ON for that run only), then record
 
 ## Review

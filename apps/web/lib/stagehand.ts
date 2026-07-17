@@ -14,6 +14,12 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 export async function getStagehand(sessionId: string): Promise<Stagehand> {
   const existing = instances.get(sessionId);
   if (existing) {
+    // A dead CDP transport (released/expired session) nulls stagehand.context; serving
+    // that instance makes every subsequent tool call crash-loop on null. Evict + fail fast.
+    if (!existing.stagehand.context) {
+      instances.delete(sessionId);
+      throw new Error("Browser session is no longer available (browser closed)");
+    }
     existing.lastUsed = Date.now();
     return existing.stagehand;
   }

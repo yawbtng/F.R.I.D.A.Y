@@ -13,6 +13,22 @@ const convex = process.env.NEXT_PUBLIC_CONVEX_URL
   ? new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL)
   : null;
 
+if (!convex) {
+  console.warn("[convex] NEXT_PUBLIC_CONVEX_URL not set — screenshot persistence disabled");
+}
+
+// Convex is an optional side-channel. After the first connection failure (local Convex
+// dev server not running) warn once and skip all later attempts for this process —
+// screenshot serving to the UI is unaffected, only persistence goes quiet.
+let convexUnreachable = false;
+
+const isConnectionError = (err: unknown): boolean =>
+  /ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|fetch failed/i.test(
+    err instanceof Error
+      ? `${err.message} ${String((err as { cause?: unknown }).cause ?? "")}`
+      : String(err),
+  );
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   // Part of the swarm fan-out (one freeze-frame per tile on completion); the per-IP
@@ -45,10 +61,17 @@ export async function POST(req: NextRequest) {
     const screenshot = await compressScreenshot(stagehand);
 
     // Persist screenshot to Convex file storage (non-blocking)
-    if (convex) {
+    if (convex && !convexUnreachable) {
       persistScreenshot(parsed.data.sessionId, screenshot).catch(
         (err: unknown) => {
-          console.error("[convex] Failed to persist screenshot:", err);
+          if (isConnectionError(err)) {
+            convexUnreachable = true;
+            console.warn(
+              "[convex] unreachable — skipping screenshot persistence for the rest of this process",
+            );
+          } else {
+            console.error("[convex] Failed to persist screenshot:", err);
+          }
         },
       );
     }

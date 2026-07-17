@@ -182,7 +182,7 @@ export function goalFor(adapter: StateAdapter, entity: string): string {
  *  unreachable), as opposed to "no record found". Shared by the KYB `mapStatus` and
  *  the generic swarm classifier so both agree on what "blocked" means. */
 export function isBlocked(text: string): boolean {
-  return /blocked|captcha|are you human|security check|robot|verify you are|access denied|forbidden|can.?t be reached|unreachable/.test(
+  return /blocked|captcha|turnstile|are you human|security check|robot|verify you are|access denied|forbidden|can.?t be reached|unreachable/.test(
     text.toLowerCase(),
   );
 }
