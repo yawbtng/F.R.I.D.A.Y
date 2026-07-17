@@ -20,14 +20,17 @@ test-run logs, not guesses.
   instructions delivered → proceed directly to voice-I/O + text-brain architecture.
 
 ## Tasks
-- [ ] P0: Commit the 5 pending voice fixes (persona/date, New Session reset,
-      user turns in mission log, planTask desc) on phase-b-visuals
-- [ ] P1: Headless voice truth probe (apps/web/scripts/probe-realtime.ts):
-      connect like the browser, send session-update + tools, assert
-      (a) config ack/error events, (b) correct today's-date answer,
-      (c) "verify Tesla" → planTask tool call. No mic needed.
-- [ ] P2: Fix voice per probe evidence — surface error events in use-voice;
-      fix config delivery; else text-brain router architecture
+- [x] P0: Commit the 5 pending voice fixes (persona/date, New Session reset,
+      user turns in mission log, planTask desc) on phase-b-visuals (b069e52)
+- [x] P1: Headless voice truth probe (apps/web/scripts/probe-realtime.ts) —
+      PROVED root cause: outputModalities ["audio","text"] is invalid →
+      Gateway rejects the ENTIRE session.update atomically → model ran with
+      OpenAI default persona, alloy voice, ZERO tools. With ["audio"] alone:
+      config ACKed, persona + 7 tools land, and planTask fires on first ask.
+      Model is capable — no text-brain rebuild needed.
+- [x] P2: Fixed — use-voice.ts outputModalities → ["audio"]; error events now
+      logged loudly in onEvent (they arrive post-"connected", where onError
+      deliberately ignores them — that's why the rejection was invisible)
 - [ ] P3: Swarm reliability — fast CAPTCHA/blocked detection (no 45s grind),
       guard awaitActivePage null crash, gate Convex persistence noise
 - [ ] P4: End-to-end demo dry-run (proxies ON for that run only), then record

@@ -79,7 +79,11 @@ export function useVoice({
     () => ({
       instructions,
       voice,
-      outputModalities: ["audio", "text"],
+      // MUST be ["audio"] alone: OpenAI's realtime API accepts ['audio'] OR ['text'], never
+      // both. ["audio","text"] gets the WHOLE session.update rejected atomically — persona,
+      // date, and all 7 tools silently voided (the model ran as a stock chatbot). Assistant
+      // text still streams via output_audio_transcript deltas, so the transcript panel works.
+      outputModalities: ["audio"],
       turnDetection: {
         type: "server-vad", // auto turn-taking + barge-in
         threshold: 0.5,
@@ -105,6 +109,14 @@ export function useVoice({
         : undefined,
     onEvent: (event) => {
       const type = (event as { type?: string }).type ?? "";
+      // Server error events (e.g. a rejected session.update) arrive AFTER status is already
+      // "connected", which is exactly the case onError below ignores — so they were invisible.
+      // A voided session.update is catastrophic (no persona, no tools) yet the session keeps
+      // "working" as a stock chatbot. Always make these loud.
+      if (type === "error" || type.endsWith(".error")) {
+        console.error("[voice] realtime server error:", JSON.stringify(event));
+        return;
+      }
       if (type.includes("speech_started") || type.includes("speech-started")) {
         setVoiceState("listening");
       } else if (type.includes("audio") && type.includes("delta")) {
