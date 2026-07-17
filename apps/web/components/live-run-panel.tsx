@@ -9,10 +9,22 @@ import { useEffect, useRef } from 'react';
 import type { UIMessage } from 'ai';
 import type { Tile } from './swarm-grid';
 
-/** Flatten a v7 UIMessage to plain text — joins its text parts, ignores the rest. */
+/** Flatten a v7 UIMessage to plain text. Assistant turns carry `type:'text'` parts; the user's
+ *  SPOKEN turns carry the Whisper transcript on a different part shape (e.g. `transcript`/`audio`),
+ *  so we also pull any string `transcript` or `text` field — otherwise the user's side of the
+ *  conversation flattens to '' and gets filtered out (only F.R.I.D.A.Y. shows). */
 function textOf(m: UIMessage): string {
   if (!Array.isArray(m.parts)) return '';
-  return m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('').trim();
+  return m.parts
+    .map((p) => {
+      if (typeof p !== 'object' || p === null) return '';
+      const part = p as { type?: string; text?: unknown; transcript?: unknown };
+      if (typeof part.text === 'string') return part.text;
+      if (typeof part.transcript === 'string') return part.transcript;
+      return '';
+    })
+    .join('')
+    .trim();
 }
 
 // Statuses that count as a settled answer for the progress tally (mirrors the page/header).

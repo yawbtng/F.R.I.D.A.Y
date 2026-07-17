@@ -4,13 +4,13 @@
 // dispatch table + plan state. This is the single seam the unified command-center consumes,
 // so page components stay thin. Voice tool calls flow in here; swarm state flows back out.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVoice } from "./use-voice";
 import { useSwarm } from "./use-swarm";
 import { planToTargets, type SwarmTarget } from "@/lib/swarm-target";
 import type { PlanTarget } from "@/lib/schemas";
 import { applyPlanOps, planSummary, reportSummary, type PlanOp } from "@/lib/friday-tools";
-import { FRIDAY_INSTRUCTIONS } from "@/lib/friday-persona";
+import { buildFridayInstructions } from "@/lib/friday-persona";
 
 export function useFriday() {
   const swarm = useSwarm();
@@ -130,7 +130,27 @@ export function useFriday() {
     setDiagram({ title: data.title ?? "Diagram", kind: data.kind ?? "", mermaid: data.mermaid ?? "" });
   }, []);
 
-  const voice = useVoice({ instructions: FRIDAY_INSTRUCTIONS, onToolCall: dispatch });
+  // Instructions carry today's date + a hard "never answer from memory, always look it up" rule.
+  // Built once (stable ref) so the realtime session isn't torn down on every re-render.
+  const instructions = useMemo(
+    () =>
+      buildFridayInstructions(
+        new Date().toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      ),
+    [],
+  );
+  const voice = useVoice({ instructions, onToolCall: dispatch });
+
+  // Mission-log transcript minus turns hidden by a New Session. The realtime hook exposes no
+  // clearMessages, so we snapshot the current message ids on reset and filter them out; genuinely
+  // new turns (fresh ids after reconnect) still appear.
+  const hiddenMsgIds = useRef<Set<string>>(new Set());
+  const visibleMessages = voice.messages.filter((m) => !hiddenMsgIds.current.has(m.id));
 
   // M3 progress bridge: narrate the run as tiles come back. Coalesced (~every 6s, only on real
   // progress) and turn-aware (never while the user is speaking) so it doesn't spam or talk over
@@ -182,6 +202,10 @@ export function useFriday() {
   }, [swarm.tiles, swarm.phase, voice.status, voice.voiceState]);
 
   const resetAll = useCallback(() => {
+    // Hide the current transcript, then end the voice session so the model's conversation context
+    // resets too — "New Session" means a genuine fresh start, not just a cleared screen.
+    hiddenMsgIds.current = new Set(voiceRef.current.messages.map((m) => m.id));
+    voiceRef.current.disconnect();
     swarmRef.current.reset();
     setPlan([]);
     setPlanTitle("");
@@ -203,6 +227,7 @@ export function useFriday() {
     diagram,
     setDiagram,
     visualize,
+    messages: visibleMessages,
     resetAll,
   };
 }

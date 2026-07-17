@@ -50,6 +50,7 @@ export default function FridayPage() {
     setFocusedId,
     diagram,
     visualize,
+    messages,
     resetAll,
   } = useFriday();
 
@@ -301,7 +302,7 @@ export default function FridayPage() {
 
   const rightPanel = (
     <LiveRunPanel
-      messages={voice.messages}
+      messages={messages}
       tiles={tiles}
       phase={phase}
       elapsed={elapsed}

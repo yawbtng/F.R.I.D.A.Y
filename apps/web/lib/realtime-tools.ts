@@ -12,7 +12,7 @@ import { z } from "zod";
 export const realtimeTools = {
   planTask: tool({
     description:
-      "Plan a browser swarm for the user's task. Turns a free-form request (e.g. 'verify these 15 businesses are real and active') into a list of targets, one per cloud browser. Call this as soon as the user describes what they want done.",
+      "Plan a browser swarm to look something up on the live web. Turns ANY request OR question that needs real/current information — 'verify these 15 businesses are real', 'what games are on this week', 'compare the price of X across these stores' — into a list of targets, one per cloud browser. Call this instead of answering from your own knowledge; call it as soon as the user asks something you'd need the web to answer.",
     inputSchema: z.object({
       task: z
         .string()
