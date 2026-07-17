@@ -11,6 +11,7 @@ import type { Tile, TileState } from '@/components/swarm-grid';
 import type { SwarmTarget } from '@/lib/swarm-target';
 import type { ReportNarrative } from '@/lib/report';
 import { runTarget, isHttpUrl, type RunSession } from '@/lib/run-target';
+import { saveRun, patchRun, compactTiles } from '@/lib/run-history';
 
 export interface SpawnedBrowser {
   browserId: string;
@@ -81,6 +82,9 @@ export function useSwarm() {
   // and drops its tile writes if the slot has since been retargeted — otherwise the old
   // session's death would clobber the new target's live state when it settles.
   const tileGen = useRef<Record<number, number>>({});
+  // The localStorage record for the current run (lib/run-history) — created when the run
+  // finishes, then patched as the narrative lands or a retarget changes the findings.
+  const runRecordIdRef = useRef<string | null>(null);
 
   // Release the fleet if the consumer unmounts mid-run.
   useEffect(() => () => releaseFleet(fleetRef.current), []);
@@ -342,11 +346,11 @@ export function useSwarm() {
         }),
       });
       const data = await res.json();
-      setNarrative(
-        res.ok
-          ? { headline: data.headline ?? '', takeaway: data.takeaway ?? '', notes: data.notes ?? [] }
-          : { headline: 'Report unavailable', takeaway: data.error || 'Failed to synthesize.', notes: [] },
-      );
+      const n: ReportNarrative = res.ok
+        ? { headline: data.headline ?? '', takeaway: data.takeaway ?? '', notes: data.notes ?? [] }
+        : { headline: 'Report unavailable', takeaway: data.error || 'Failed to synthesize.', notes: [] };
+      setNarrative(n);
+      if (res.ok && runRecordIdRef.current) patchRun(runRecordIdRef.current, { narrative: n });
     } catch {
       setNarrative({ headline: 'Report unavailable', takeaway: 'Failed to synthesize the report.', notes: [] });
     } finally {
@@ -359,15 +363,31 @@ export function useSwarm() {
     if (!narrative && !reportLoading) generateReport();
   }, [narrative, reportLoading, generateReport]);
 
-  // Auto-open + synthesize the report the moment a run finishes (once per run).
+  // Auto-open + synthesize the report the moment a run finishes (once per run), and
+  // persist the run to local history (screenshots excluded — see lib/run-history).
   useEffect(() => {
     if (phase === 'done' && !autoReportRef.current) {
       autoReportRef.current = true;
+      runRecordIdRef.current = `run-${Date.now()}`;
+      saveRun({
+        id: runRecordIdRef.current,
+        ts: Date.now(),
+        task: taskRef.current,
+        tiles: compactTiles(tilesRef.current),
+      });
       setReportOpen(true);
       generateReport();
     }
     if (phase === 'idle') autoReportRef.current = false;
   }, [phase, generateReport]);
+
+  // Keep the saved record honest after the run: a stealth retry or a voice retarget can
+  // change findings while phase is still 'done' — mirror those into local history.
+  useEffect(() => {
+    if (phase === 'done' && runRecordIdRef.current) {
+      patchRun(runRecordIdRef.current, { tiles: compactTiles(tiles) });
+    }
+  }, [tiles, phase]);
 
   // Halt the in-flight run: release the fleet now (so pending agent/extract calls fail fast),
   // mark still-working tiles as stopped, and drop back to idle. Barge-in "stop" calls this.
@@ -391,6 +411,7 @@ export function useSwarm() {
     releaseFleet(fleetRef.current);
     fleetRef.current = [];
     targetsRef.current = [];
+    runRecordIdRef.current = null; // history record stays saved; just stop patching it
     setTiles([]);
     setPhase('idle');
     setElapsed(0);
