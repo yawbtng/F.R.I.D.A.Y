@@ -38,7 +38,8 @@ async function runOne(state: string) {
       ? {
           browserbaseSessionCreateParams: {
             projectId: process.env.BROWSERBASE_PROJECT_ID!,
-            proxies: true,
+            // Proxies gated behind BB_PROXIES=1 — proxy bandwidth bills at $12/GB (off by default).
+            ...(process.env.BB_PROXIES === "1" ? { proxies: true } : {}),
             browserSettings: { solveCaptchas: true },
           },
         }

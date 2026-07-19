@@ -1,19 +1,21 @@
 'use client';
 
-// Narrated planning loader: surfaces the two-pass planner's thinking (draft -> adversarial
-// critique -> refine) while /api/swarm/plan is in flight. Cycles the steps on a timer and
-// holds on the last one — the real call resolves and moves the page to the review gate.
-// Same spirit as artifact-modal's SynthLoader, but rendered as a settling checklist.
+// Planning loader: the "assembling the swarm" moment while /api/swarm/plan is in flight (draft ->
+// adversarial critique -> refine). A radar core with orbiting nodes (the fleet forming) + sonar
+// pings, under a shimmering status line that cycles the planner's passes and holds on the last one
+// until the real call resolves and the page moves to the review gate.
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const PLAN_STEPS = [
-  'Understanding the task…',
-  'Drafting targets…',
-  'Adversarially reviewing the plan…',
-  'Tightening goals & queries…',
+  'Understanding the task',
+  'Drafting targets',
+  'Adversarially reviewing the plan',
+  'Tightening goals & queries',
 ];
+
+const NODES = [0, 1, 2, 3, 4, 5, 6, 7];
 
 export function PlanningLoader() {
   const [i, setI] = useState(0);
@@ -25,47 +27,116 @@ export function PlanningLoader() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="glass-heavy rounded-xl p-5 max-w-md"
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="flex h-full flex-col items-center justify-center gap-8 py-10 text-center"
     >
-      <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-friday-text-tertiary">
-        <span className="text-friday-accent">✦</span> Planning your swarm
+      {/* Radar / orbit — the fleet forming */}
+      <div className="relative h-44 w-44">
+        {/* sonar pings */}
+        {[0, 1, 2].map((r) => (
+          <motion.span
+            key={r}
+            className="absolute inset-0 rounded-full border border-border-accent bg-[var(--accent-pulse)]"
+            initial={{ scale: 0.25, opacity: 0.5 }}
+            animate={{ scale: 1, opacity: 0 }}
+            transition={{ duration: 2.6, repeat: Infinity, delay: r * 0.85, ease: 'easeOut' }}
+          />
+        ))}
+
+        {/* faint static orbits */}
+        <div className="absolute inset-3 rounded-full border border-border" />
+        <div className="absolute inset-12 rounded-full border border-border" />
+
+        {/* revolving ring of nodes */}
+        <motion.div
+          className="absolute inset-0"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
+        >
+          {NODES.map((n) => (
+            <div
+              key={n}
+              className="absolute inset-0"
+              style={{ transform: `rotate(${(n / NODES.length) * 360}deg)` }}
+            >
+              <motion.span
+                className="absolute left-1/2 top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-accent shadow-glow"
+                animate={{ opacity: [0.2, 1, 0.2], scale: [0.7, 1.3, 0.7] }}
+                transition={{ duration: 1.8, repeat: Infinity, delay: n * 0.18, ease: 'easeInOut' }}
+              />
+            </div>
+          ))}
+        </motion.div>
+
+        {/* pulsing core */}
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-glow"
+          animate={{ scale: [1, 1.6, 1], opacity: [0.85, 1, 0.85] }}
+          transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }}
+        />
       </div>
-      <ol className="space-y-2.5">
-        {PLAN_STEPS.map((step, idx) => {
-          const done = idx < i;
-          const active = idx === i;
-          return (
-            <li key={step} className="flex items-center gap-2.5 text-sm">
-              {/* Marker: spinner on the live step, check once passed, dim dot for what's ahead. */}
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                {active ? (
-                  <span className="h-4 w-4 rounded-full border-2 border-friday-accent/30 border-t-friday-accent animate-spin" />
-                ) : done ? (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-friday-accent/20 text-[9px] text-friday-accent ring-1 ring-friday-accent/40">
-                    ✓
-                  </span>
-                ) : (
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/15" />
-                )}
-              </span>
-              <span
-                className={
-                  active
-                    ? 'font-medium text-friday-text-primary'
-                    : done
-                      ? 'text-friday-text-secondary'
-                      : 'text-friday-text-tertiary'
-                }
-              >
-                {step}
-              </span>
-            </li>
+
+      {/* Cycling status + shimmer */}
+      <div className="space-y-3.5">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">
+          Assembling the swarm
+        </div>
+
+        <div className="relative flex h-6 items-center justify-center overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={i}
+              initial={{ y: 14, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -14, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              <span className="shimmer text-base font-medium">{PLAN_STEPS[i]}</span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* progress dots — current one stretches into a bar */}
+        <div className="flex items-center justify-center gap-1.5">
+          {PLAN_STEPS.map((step, idx) => (
+            <motion.span
+              key={step}
+              className="h-1.5 rounded-full"
+              animate={{
+                width: idx === i ? 22 : 6,
+                backgroundColor: idx <= i ? 'var(--accent)' : 'var(--surface-2)',
+              }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <style jsx>{`
+        .shimmer {
+          background: linear-gradient(
+            90deg,
+            var(--text-muted) 0%,
+            var(--text) 50%,
+            var(--text-muted) 100%
           );
-        })}
-      </ol>
+          background-size: 200% 100%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: shimmer 2.4s linear infinite;
+        }
+        @keyframes shimmer {
+          from {
+            background-position: 200% 0;
+          }
+          to {
+            background-position: 0% 0;
+          }
+        }
+      `}</style>
     </motion.div>
   );
 }

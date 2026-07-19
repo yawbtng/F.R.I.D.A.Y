@@ -1,141 +1,147 @@
 'use client';
 
+// Three-step explainer, Browserbase-editorial: mono eyebrow, a headline with the orange
+// highlighter, then three flat hairline cards that rise-and-fade in sequence. Each card carries
+// a mono numeral, a line icon, a one-liner, and a tiny mock visual that previews the step.
+// All colors read from semantic tokens, so it re-themes light/dark with zero conditional code.
+
+import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { fadeUp, scaleIn, staggerContainer } from '@/components/landing/animations';
+import { Mic, LayoutGrid, FileCheck, type LucideIcon } from 'lucide-react';
+import { Eyebrow, Highlighter } from '@/components/landing/primitives';
+import { riseAndFade, staggerContainer, inView } from '@/components/landing/animations';
+
+// --- tiny per-step mock visuals (geometry only; color from tokens) ---
+
+/** 01 — a few stacked mono waveform bars, a couple lit orange. */
+function WaveVisual() {
+  const bars = [10, 20, 13, 24, 15, 22, 12];
+  return (
+    <div aria-hidden className="flex items-end gap-1">
+      {bars.map((h, i) => (
+        <span
+          key={i}
+          className={`w-1 rounded-full ${i % 3 === 1 ? 'bg-accent' : 'bg-border-strong'}`}
+          style={{ height: h }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** 02 — a mini 3x2 grid of tiles, one of them working (orange). */
+function GridVisual() {
+  return (
+    <div aria-hidden className="grid w-24 grid-cols-3 gap-1.5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <span
+          key={i}
+          className={`aspect-square rounded-sm ${i === 2 ? 'bg-accent' : 'bg-surface-2'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** 03 — three findings rows, each a success dot + a skeleton line. */
+function ReportVisual() {
+  const widths = ['w-20', 'w-14', 'w-24'];
+  return (
+    <div aria-hidden className="space-y-2">
+      {widths.map((w, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+          <span className={`h-1.5 rounded-full bg-border ${w}`} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface Step {
-  number: '01' | '02' | '03';
+  number: string;
   title: string;
   body: string;
+  icon: LucideIcon;
+  visual: ReactNode;
 }
 
 const STEPS: Step[] = [
   {
     number: '01',
-    title: 'Say what you need',
-    body: 'Talk to Friday like you\'d talk to a person. Your voice travels over WebRTC, and Deepgram turns it into text before you finish the sentence.',
+    title: 'Speak',
+    body: 'Say what to check. FRIDAY plans the targets.',
+    icon: Mic,
+    visual: <WaveVisual />,
   },
   {
     number: '02',
-    title: 'Friday takes over',
-    body: 'Claude figures out what you meant and picks the right move. Stagehand runs it in a real browser - clicking, typing, scrolling - whatever the page needs.',
+    title: 'Swarm',
+    body: 'Every target gets its own cloud browser, all working side by side.',
+    icon: LayoutGrid,
+    visual: <GridVisual />,
   },
   {
     number: '03',
-    title: 'Get the answer back',
-    body: 'Friday reads you the result out loud. A screenshot shows up so you can see exactly what happened. Ask a follow-up or give it the next task.',
+    title: 'Report',
+    body: 'Findings collapse into one shareable report.',
+    icon: FileCheck,
+    visual: <ReportVisual />,
   },
 ];
 
-function VoiceVisual() {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-xl">
-      <div className="flex items-end justify-center gap-2">
-        {[28, 44, 36, 52, 24, 40, 34].map((height, index) => (
-          <motion.span
-            key={height}
-            className="w-2 rounded-full bg-friday-accent/80"
-            style={{ height }}
-            animate={{ scaleY: [0.55, 1, 0.55] }}
-            transition={{ duration: 1.3, delay: index * 0.08, repeat: Infinity }}
-          />
-        ))}
-      </div>
-      <p className="mt-5 text-center font-mono text-xs text-friday-text-muted">Listening for command...</p>
-    </div>
-  );
-}
-
-function ExecuteVisual() {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-xl">
-      <div className="mb-3 flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-friday-error/70" />
-        <span className="h-2.5 w-2.5 rounded-full bg-friday-pending/70" />
-        <span className="h-2.5 w-2.5 rounded-full bg-friday-active/70" />
-      </div>
-      <motion.div
-        className="mb-3 h-8 rounded-md border border-white/[0.08] bg-black/30"
-        animate={{ opacity: [0.55, 1, 0.55] }}
-        transition={{ duration: 1.6, repeat: Infinity }}
-      />
-      <div className="space-y-2">
-        {[1, 2, 3].map((line) => (
-          <motion.div
-            key={line}
-            className="h-2 rounded bg-white/[0.08]"
-            animate={{ width: ['35%', '78%', '35%'] }}
-            transition={{ duration: 1.9, delay: line * 0.2, repeat: Infinity }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnswerVisual() {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-xl">
-      <div className="rounded-lg border border-white/[0.08] bg-black/25 p-3">
-        <div className="h-24 rounded-md bg-gradient-to-br from-blue-500/12 via-transparent to-blue-300/6" />
-      </div>
-      <div className="mt-4 flex items-center justify-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-friday-accent animate-pulse" />
-        <span className="font-mono text-xs text-friday-text-muted">Speaking result...</span>
-      </div>
-    </div>
-  );
-}
-
-function StepVisual({ index }: { index: number }) {
-  if (index === 0) return <VoiceVisual />;
-  if (index === 1) return <ExecuteVisual />;
-  return <AnswerVisual />;
-}
-
 export function HowItWorks() {
   return (
-    <section className="px-6 py-32 sm:py-40">
+    <section className="py-24 sm:py-32">
       <motion.div
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: '-80px' }}
+        viewport={inView}
         variants={staggerContainer}
-        className="mx-auto max-w-6xl"
+        className="mx-auto max-w-6xl px-6"
       >
+        <motion.div variants={riseAndFade}>
+          <Eyebrow>How it works</Eyebrow>
+        </motion.div>
+
         <motion.h2
-          variants={fadeUp}
-          className="text-center text-4xl font-semibold text-friday-text-primary sm:text-5xl"
+          variants={riseAndFade}
+          className="mt-4 max-w-2xl font-display text-4xl font-medium leading-[1.05] tracking-[-0.015em] text-text sm:text-5xl"
         >
-          How it works
+          Three steps to a <Highlighter>verified answer</Highlighter>.
         </motion.h2>
-        <motion.p
-          variants={fadeUp}
-          className="mx-auto mt-4 max-w-2xl text-center text-lg text-friday-text-secondary"
-        >
-          Voice in, browser action in the cloud, spoken answer out.
+
+        <motion.p variants={riseAndFade} className="mt-4 max-w-xl text-lg text-text-muted">
+          Voice in. Every target checked at once. One answer back.
         </motion.p>
 
-        <div className="mx-auto mt-14 max-w-5xl space-y-6">
-          {STEPS.map((step, index) => (
-            <motion.article
-              key={step.number}
-              variants={scaleIn}
-              className="grid grid-cols-1 items-center gap-8 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 backdrop-blur-xl md:grid-cols-2 md:p-10"
-            >
-              <div>
-                <p className="font-mono text-xs tracking-widest text-friday-text-muted">{step.number}</p>
-                <h3 className="mt-3 text-3xl font-semibold leading-tight text-friday-text-primary sm:text-4xl">
+        <motion.div
+          variants={staggerContainer}
+          className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3"
+        >
+          {STEPS.map((step) => {
+            const Icon = step.icon;
+            return (
+              <motion.article
+                key={step.number}
+                variants={riseAndFade}
+                className="flex h-full flex-col rounded-lg border border-border bg-surface p-6 shadow-inset-top transition-colors duration-200 ease-brand hover:border-border-strong"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm text-accent">{step.number}</span>
+                  <Icon className="h-5 w-5 text-accent" aria-hidden />
+                </div>
+
+                <h3 className="mt-5 font-display text-xl font-medium tracking-[-0.015em] text-text">
                   {step.title}
                 </h3>
-                <p className="mt-5 text-lg leading-relaxed text-friday-text-secondary">{step.body}</p>
-              </div>
-              <div>
-                <StepVisual index={index} />
-              </div>
-            </motion.article>
-          ))}
-        </div>
+                <p className="mt-2 text-sm leading-relaxed text-text-muted">{step.body}</p>
+
+                <div className="mt-auto flex items-end pt-8">{step.visual}</div>
+              </motion.article>
+            );
+          })}
+        </motion.div>
       </motion.div>
     </section>
   );

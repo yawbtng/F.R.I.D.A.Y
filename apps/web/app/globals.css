@@ -2,39 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================================
+   THEME TOKENS — Browserbase-native (OrangeRed #FF4500 + warm neutrals).
+   Dark is the default (:root); light overrides live in .light and MUST
+   come after :root. The old friday-* CSS vars are remapped onto the new
+   semantic tokens, so every existing component re-themes to orange AND
+   becomes light/dark aware with zero component edits. Migration to the
+   semantic classes happens in Phase 2.
+   ===================================================================== */
 :root {
-  /* Backgrounds */
-  --bg-primary: #09090b;      /* zinc-950 */
-  --bg-secondary: #18181b;    /* zinc-900 */
-  --bg-tertiary: #27272a;     /* zinc-800 */
-  --bg-elevated: #1c1c1f;
-  --bg-surface: #0d0d0d;
+  color-scheme: dark;
 
-  /* Borders */
-  --border-default: #27272a;  /* zinc-800 */
-  --border-active: #3b82f6;   /* blue-500 */
-  --border-subtle: #1f1f23;
-  --border-hover: #333333;
+  /* --- surfaces --- */
+  --bg: #0C0A09;             /* warm near-black canvas */
+  --surface: #1C1917;        /* raised card */
+  --surface-2: #292524;      /* higher elevation / hover */
+  --surface-accent: #1B1613; /* dark stand-in for the periwinkle hero */
+  --surface-sunken: #0A0908; /* wells, iframe letterbox */
 
-  /* Text */
-  --text-primary: #fafafa;    /* zinc-50 */
-  --text-secondary: #a1a1aa;  /* zinc-400 */
-  --text-muted: #71717a;      /* zinc-500 */
-  --text-accent: #60a5fa;     /* blue-400 */
+  /* --- borders --- */
+  --border: #2E2926;         /* hairline (lifted so it's visible on --bg) */
+  --border-strong: #44403C;  /* structural */
+  --border-accent: #FF4500;  /* active/focused */
 
-  /* Accent — Arc Reactor Blue */
-  --accent-primary: #3b82f6;
-  --accent-glow: rgba(59, 130, 246, 0.4);
-  --accent-pulse: rgba(59, 130, 246, 0.08);
-  --accent-hover: #60a5fa;
+  /* --- text --- */
+  --text: #F5F3F0;
+  --text-muted: #A8A29E;
+  --text-subtle: #8A827B;
 
-  /* Status */
-  --status-success: #22c55e;
-  --status-error: #ef4444;
-  --status-warning: #f59e0b;
-  --status-info: #3b82f6;
+  /* --- accent --- */
+  --accent: #FF4500;
+  --accent-hover: #FF6A33;   /* brightened for dark */
+  --accent-pressed: #E63E00;
+  --accent-fg: #FFFFFF;       /* on accent — AA-large / bold only */
+  --accent-fg-strong: #1A0A00; /* on accent — small text (AA) */
+  --accent-text: #FF7A45;    /* accent-colored TEXT on dark (AA) */
+  --accent-glow: rgba(255, 69, 0, 0.35);
+  --accent-pulse: rgba(255, 69, 0, 0.10);
 
-  /* Glass — liquid glass design tokens */
+  /* --- status (base=dot/border, -fg=text-on-surface, -tint=pill bg) --- */
+  --success: #71AC38; --success-fg: #8FD24E; --success-tint: rgba(113, 172, 56, 0.16);
+  --warning: #F4BA41; --warning-fg: #F4BA41; --warning-tint: rgba(244, 186, 65, 0.16);
+  --error:   #E5484D; --error-fg:   #FF8A8A; --error-tint:   rgba(229, 72, 77, 0.16);
+  --info:    #4DA9E4; --info-fg:    #7BC4F0; --info-tint:    rgba(77, 169, 228, 0.16);
+  --neutral: #78716C; --neutral-fg: #A8A29E; --neutral-tint: rgba(120, 113, 108, 0.16);
+
+  /* --- translucency (dedicated tokens — never opacity-modifier a hex var) --- */
+  --scrim: rgba(12, 10, 9, 0.72);      /* nav / overlay backdrop */
+  --highlight: rgba(245, 243, 240, 0.06); /* inset top hairline */
+
+  /* --- macOS window chrome (theme-independent) --- */
+  --wc-red: #FF5F57; --wc-yellow: #FEBC2E; --wc-green: #28C840;
+
+  --ease: cubic-bezier(0.3, 0, 0.15, 1);
+
+  /* --- glass (theme-aware; dark keeps the existing subtle frosted look) --- */
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-bg-subtle: rgba(255, 255, 255, 0.03);
   --glass-bg-heavy: rgba(255, 255, 255, 0.08);
@@ -48,41 +70,87 @@
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.05);
   --glass-shadow-elevated: 0 16px 48px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.08);
 
-  /* Spacing (8px base) */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-12: 3rem;
+  /* --- spacing (8px base) --- */
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --space-6: 1.5rem; --space-8: 2rem; --space-12: 3rem;
 
-  /* Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-full: 9999px;
+  /* --- radius --- */
+  --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem;
+  --radius-full: 9999px; --radius-pill: 999px; --radius-sharp: 0px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  /* --- shadows --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-glow: 0 0 20px var(--accent-glow);
-
-  /* Legacy aliases (backward compat with existing friday-* classes) */
-  --visualizer-glow: var(--accent-glow);
-  --friday-pulse: var(--accent-pulse);
+  --shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 6px 24px rgba(0, 0, 0, 0.45);
 }
 
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+/* ============ LIGHT — Browserbase paper (must come AFTER :root) ============ */
+.light {
+  color-scheme: light;
+
+  --bg: #FAFAF8;             /* near-white canvas — Browserbase reads white, not cream */
+  --surface: #FFFFFF;        /* white cards on the near-white canvas */
+  --surface-2: #F2F2EF;      /* subtle raised / hover */
+  --surface-accent: #E2E9F3; /* periwinkle hero tint (kept) */
+  --surface-sunken: #EEEEEA;
+
+  --border: #E6E4DF;         /* light neutral hairline (was warm cream) */
+  --border-strong: #D5D3CD;
+  --border-accent: #FF4500;
+
+  --text: #260F17;           /* ink plum */
+  --text-muted: #575150;
+  --text-subtle: #777170;
+
+  --accent: #FF4500;
+  --accent-hover: #E63E00;   /* darken on light */
+  --accent-pressed: #CC3700;
+  --accent-fg: #FFFFFF;
+  --accent-fg-strong: #1A0A00;
+  --accent-text: #C43700;    /* accent TEXT that hits AA on cream */
+  --accent-glow: rgba(255, 69, 0, 0.22);
+  --accent-pulse: rgba(255, 69, 0, 0.08);
+
+  --success: #71AC38; --success-fg: #4E7A24; --success-tint: rgba(113, 172, 56, 0.14);
+  --warning: #F4BA41; --warning-fg: #8A5A00; --warning-tint: rgba(244, 186, 65, 0.20);
+  --error:   #CE1F02; --error-fg:   #CE1F02; --error-tint:   rgba(206, 31, 2, 0.10);
+  --info:    #2D7FB8; --info-fg:    #1E6091; --info-tint:    rgba(45, 127, 184, 0.12); /* AA-fixed */
+  --neutral: #A5A09E; --neutral-fg: #777170; --neutral-tint: rgba(120, 113, 108, 0.10);
+
+  --scrim: rgba(244, 241, 236, 0.72);
+  --highlight: #C5D3E8;       /* periwinkle inset top-highlight (Browserbase move) */
+
+  /* glass — white frosted on cream */
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.42);
+  --glass-bg-heavy: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(38, 15, 23, 0.08);
+  --glass-border-bright: rgba(38, 15, 23, 0.14);
+  --glass-border-subtle: rgba(38, 15, 23, 0.05);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 8px 32px rgba(38, 15, 23, 0.10), 0 0 1px rgba(38, 15, 23, 0.06);
+  --glass-shadow-elevated: 0 16px 48px rgba(38, 15, 23, 0.14), 0 0 1px rgba(38, 15, 23, 0.08);
+
+  --shadow-sm: 0 1px 2px rgba(38, 15, 23, 0.10);
+  --shadow-md: 0 4px 6px rgba(38, 15, 23, 0.12);
+  --shadow-overlay: 0 16px 48px rgba(38, 15, 23, 0.14);
+  --shadow-pop: 0 6px 24px rgba(38, 15, 23, 0.10);
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
 }
 
 /* Selection styling */
 ::selection {
-  background-color: rgba(59, 130, 246, 0.3);
-  color: var(--text-primary);
+  background-color: rgba(255, 69, 0, 0.28);
+  color: var(--text);
 }
 
 /* Smooth scrolling */
@@ -91,7 +159,7 @@ html {
 }
 
 /* ---------------------------------------------------------------------------
-   Glass Utility Classes — Liquid Glass Design System
+   Glass Utility Classes — Liquid Glass Design System (now theme-aware)
    --------------------------------------------------------------------------- */
 
 .glass {
@@ -159,48 +227,22 @@ html {
    --------------------------------------------------------------------------- */
 
 @keyframes liquid-blob-1 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.4;
-  }
-  33% {
-    transform: translate(30px, -20px) scale(1.1);
-    opacity: 0.6;
-  }
-  66% {
-    transform: translate(-20px, 15px) scale(0.95);
-    opacity: 0.35;
-  }
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  33% { transform: translate(30px, -20px) scale(1.1); opacity: 0.6; }
+  66% { transform: translate(-20px, 15px) scale(0.95); opacity: 0.35; }
 }
 
 @keyframes liquid-blob-2 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.3;
-  }
-  33% {
-    transform: translate(-25px, 20px) scale(1.15);
-    opacity: 0.5;
-  }
-  66% {
-    transform: translate(20px, -15px) scale(0.9);
-    opacity: 0.25;
-  }
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  33% { transform: translate(-25px, 20px) scale(1.15); opacity: 0.5; }
+  66% { transform: translate(20px, -15px) scale(0.9); opacity: 0.25; }
 }
 
 @keyframes liquid-morph {
-  0%, 100% {
-    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-  }
-  25% {
-    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
-  }
-  50% {
-    border-radius: 50% 60% 30% 60% / 30% 70% 70% 40%;
-  }
-  75% {
-    border-radius: 60% 30% 60% 40% / 70% 40% 50% 60%;
-  }
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50% { border-radius: 50% 60% 30% 60% / 30% 70% 70% 40%; }
+  75% { border-radius: 60% 30% 60% 40% / 70% 40% 50% 60%; }
 }
 
 .liquid-blob-1 {
@@ -216,28 +258,14 @@ html {
    --------------------------------------------------------------------------- */
 
 @keyframes shader-ring-expand {
-  0% {
-    transform: scale(0.85);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.6);
-    opacity: 0;
-  }
+  0% { transform: scale(0.85); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 
 @keyframes shader-pulse {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0.6;
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.15);
-    opacity: 1;
-  }
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
 }
 
 .shader-ring {
@@ -259,12 +287,8 @@ html {
 }
 
 @keyframes orbit {
-  0% {
-    transform: rotate(0deg) translateY(calc(var(--radius) * 1px)) rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg) translateY(calc(var(--radius) * 1px)) rotate(-360deg);
-  }
+  0% { transform: rotate(0deg) translateY(calc(var(--radius) * 1px)) rotate(0deg); }
+  100% { transform: rotate(360deg) translateY(calc(var(--radius) * 1px)) rotate(-360deg); }
 }
 
 /* ---------------------------------------------------------------------------
@@ -278,7 +302,7 @@ html {
 }
 
 .animate-gradient-text {
-  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 30%, #818cf8 60%, #60a5fa 100%);
+  background: linear-gradient(135deg, #FF7A45 0%, #FF4500 40%, #FF6A33 70%, #FF7A45 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -301,28 +325,40 @@ html {
   border-radius: inherit;
   pointer-events: none;
   transform: skewX(-25deg);
-  background: linear-gradient(to right, transparent, rgba(255,255,255,0.04), transparent);
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.04), transparent);
   transition: left 0.65s ease-in-out;
 }
 
-.group:hover .bento-shine::after {
+.group:hover .bento-shine::after,
+.group.bento-shine:hover::after {
   left: 125%;
 }
 
 /* ---------------------------------------------------------------------------
-   Global Transition Defaults
+   Global Transition Defaults + Reduced Motion
    --------------------------------------------------------------------------- */
 
-/* Ensure all interactive elements get consistent 150ms transitions */
 .transition-colors {
   transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition-timing-function: var(--ease);
 }
 
-/* Focus ring utility — accessible visible focus */
+/* Focus ring utility — accessible visible focus (now accent-tinted) */
 .focus-ring {
   outline: none;
 }
 .focus-ring:focus-visible {
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-glow);
+}
+
+/* Respect reduced-motion globally (loaders, entrances, pulses) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

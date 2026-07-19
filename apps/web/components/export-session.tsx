@@ -176,7 +176,7 @@ export function ExportSession({ session, className = '' }: ExportSessionProps) {
       {/* Export button */}
       <button
         onClick={() => setOpen((v: boolean) => !v)}
-        className="flex items-center gap-1.5 text-friday-text-tertiary hover:text-friday-text-secondary transition-colors"
+        className="flex items-center gap-1.5 text-text-subtle hover:text-text-muted transition-colors"
         aria-label="Export session transcript"
         aria-expanded={open}
       >
@@ -207,10 +207,10 @@ export function ExportSession({ session, className = '' }: ExportSessionProps) {
           >
             <button
               onClick={() => handleExport('markdown')}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.06] transition-all duration-150 text-left"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-muted hover:text-text hover:bg-surface-2 transition-all duration-150 text-left"
             >
               <svg
-                className="w-4 h-4 text-friday-text-muted"
+                className="w-4 h-4 text-text-muted"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -227,10 +227,10 @@ export function ExportSession({ session, className = '' }: ExportSessionProps) {
             </button>
             <button
               onClick={() => handleExport('json')}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-friday-text-secondary hover:text-friday-text-primary hover:bg-white/[0.06] transition-all duration-150 text-left"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-text-muted hover:text-text hover:bg-surface-2 transition-all duration-150 text-left"
             >
               <svg
-                className="w-4 h-4 text-friday-text-muted"
+                className="w-4 h-4 text-text-muted"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

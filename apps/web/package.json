@@ -9,10 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.74",
+    "@ai-sdk/gateway": "^4.0.11",
+    "@ai-sdk/openai": "^4.0.7",
+    "@ai-sdk/react": "^4.0.15",
     "@browserbasehq/stagehand": "^3.6.0",
-    "@livekit/components-react": "^2.9.20",
-    "ai": "^6.0.209",
+    "ai": "^7.0.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1",
@@ -21,11 +22,10 @@
     "geist": "^1.7.0",
     "hls.js": "^1.6.16",
     "jose": "^6",
-    "livekit-client": "^2.17.2",
-    "livekit-server-sdk": "^2",
     "lucide-react": "^0.577.0",
     "motion": "^12.35.0",
     "next": "^15.5.12",
+    "next-themes": "^0.4.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^3.5.0",
@@ -33,7 +33,6 @@
     "zod": "^3"
   },
   "devDependencies": {
-    "@livekit/components-styles": "^1.2.0",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",

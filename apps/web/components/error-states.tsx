@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 function ErrorIcon({ className = '' }: { className?: string }) {
   return (
     <svg
-      className={`w-5 h-5 text-red-500 ${className}`}
+      className={`w-5 h-5 text-error-fg ${className}`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -45,7 +45,7 @@ function RefreshIcon({ className = '' }: { className?: string }) {
 function WifiOffIcon({ className = '' }: { className?: string }) {
   return (
     <svg
-      className={`w-5 h-5 text-red-500 ${className}`}
+      className={`w-5 h-5 text-error-fg ${className}`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -71,7 +71,7 @@ function WifiOffIcon({ className = '' }: { className?: string }) {
 function ErrorWrapper({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
-      className="flex items-center gap-3 px-4 py-3 rounded-lg glass"
+      className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface border border-border shadow-inset-top"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
@@ -94,19 +94,19 @@ interface SessionExpiredErrorProps {
 export function SessionExpiredError({ onRetry }: SessionExpiredErrorProps) {
   return (
     <ErrorWrapper>
-      <RefreshIcon className="text-friday-accent animate-spin" />
+      <RefreshIcon className="text-accent-text animate-spin" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-friday-text-primary font-medium">
+        <p className="text-sm text-text font-medium">
           Session expired
         </p>
-        <p className="text-xs text-friday-text-secondary">
+        <p className="text-xs text-text-muted">
           Creating a new session...
         </p>
       </div>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="text-xs text-friday-accent hover:text-friday-accent-hover transition-colors font-medium"
+          className="text-xs text-accent-text hover:text-accent-hover transition-colors font-medium"
         >
           Retry now
         </button>
@@ -133,11 +133,11 @@ export function NavigationError({ message, suggestion, onRetry }: NavigationErro
     <ErrorWrapper>
       <ErrorIcon />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-friday-text-primary font-medium truncate">
+        <p className="text-sm text-text font-medium truncate">
           {message}
         </p>
         {suggestion && (
-          <p className="text-xs text-friday-text-secondary mt-0.5">
+          <p className="text-xs text-text-muted mt-0.5">
             {suggestion}
           </p>
         )}
@@ -145,9 +145,9 @@ export function NavigationError({ message, suggestion, onRetry }: NavigationErro
       {onRetry && (
         <button
           onClick={onRetry}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-friday-accent glass-subtle hover:bg-friday-accent/15 transition-all duration-200"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-accent-text border border-border-accent hover:bg-[var(--accent-pulse)] transition-all duration-200"
         >
-          <RefreshIcon className="text-friday-accent" />
+          <RefreshIcon className="text-accent-text" />
           Try again
         </button>
       )}
@@ -194,14 +194,14 @@ export function AgentDisconnectedError({
     <ErrorWrapper>
       <WifiOffIcon />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-friday-text-primary font-medium">
+        <p className="text-sm text-text font-medium">
           Agent disconnected
         </p>
-        <div className="flex items-center gap-1 text-xs text-friday-text-secondary mt-0.5">
+        <div className="flex items-center gap-1 text-xs text-text-muted mt-0.5">
           <span>Reconnecting</span>
           <AnimatedDots />
           {countdown > 0 && (
-            <span className="ml-1 text-friday-text-muted">
+            <span className="ml-1 text-text-muted">
               ({countdown}s)
             </span>
           )}
@@ -210,7 +210,7 @@ export function AgentDisconnectedError({
       {onRetry && (
         <button
           onClick={onRetry}
-          className="text-xs text-friday-accent hover:text-friday-accent-hover transition-colors font-medium"
+          className="text-xs text-accent-text hover:text-accent-hover transition-colors font-medium"
         >
           Retry now
         </button>
@@ -236,13 +236,13 @@ export function GenericError({ message, actionLabel, onAction }: GenericErrorPro
   return (
     <ErrorWrapper>
       <ErrorIcon />
-      <p className="flex-1 min-w-0 text-sm text-friday-text-secondary truncate">
+      <p className="flex-1 min-w-0 text-sm text-text-muted truncate">
         {message}
       </p>
       {actionLabel && onAction && (
         <button
           onClick={onAction}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-friday-accent glass-subtle hover:bg-friday-accent/15 transition-all duration-200 whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-accent-text border border-border-accent hover:bg-[var(--accent-pulse)] transition-all duration-200 whitespace-nowrap"
         >
           {actionLabel}
         </button>
@@ -261,7 +261,7 @@ function AnimatedDots() {
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
-          className="text-friday-text-secondary"
+          className="text-text-muted"
           animate={{ opacity: [0.2, 1, 0.2] }}
           transition={{
             duration: 1.2,

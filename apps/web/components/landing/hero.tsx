@@ -1,112 +1,123 @@
 'use client';
 
+// The owned hero: a two-beat headline with the orange highlighter over a live "swarm field" —
+// a deterministic scatter of browser-tile nodes, most dim, a handful pulsing orange (the ones
+// "working"). Positions are computed from the index (not Math.random) so SSR and client agree —
+// no hydration mismatch. Canvas is `surface-accent` (periwinkle on light, warm-dark on dark).
+
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ShaderBackground } from '@/components/shader-background';
-import { fadeUp, staggerContainer } from '@/components/landing/animations';
+import { Eyebrow, Highlighter, ctaPrimary, ctaSecondary } from '@/components/landing/primitives';
+import { BrowserbaseMark } from '@/components/landing/browserbase-logo';
+import { riseAndFade, staggerContainer } from '@/components/landing/animations';
 
-function HeroOrb() {
+const COLS = 9;
+const ROWS = 6;
+
+// Deterministic jittered grid of swarm nodes. `active` ones pulse orange.
+const NODES = Array.from({ length: COLS * ROWS }, (_, i) => {
+  const col = i % COLS;
+  const row = Math.floor(i / COLS);
+  const jx = (((i * 37) % 100) / 100 - 0.5) * 0.72;
+  const jy = (((i * 61) % 100) / 100 - 0.5) * 0.72;
+  return {
+    x: ((col + 0.5) / COLS) * 100 + jx * (100 / COLS),
+    y: ((row + 0.5) / ROWS) * 100 + jy * (100 / ROWS),
+    active: i % 8 === 3,
+    delay: (i % 6) * 0.4,
+  };
+});
+
+function SwarmField() {
   return (
-    <div className="pointer-events-none absolute left-1/2 top-[34%] -z-10 flex -translate-x-1/2 items-center justify-center">
-      <motion.div
-        className="absolute h-[420px] w-[420px] rounded-full"
-        style={{
-          background:
-            'radial-gradient(circle, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.02) 56%, transparent 76%)',
-        }}
-        animate={{ scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute h-24 w-24 rounded-full"
-        style={{
-          background:
-            'radial-gradient(circle at 40% 38%, var(--accent-primary), rgba(59,130,246,0.25) 70%, transparent 100%)',
-          boxShadow: '0 0 70px var(--accent-glow), 0 0 120px rgba(59,130,246,0.15)',
-        }}
-        animate={{ scale: [1, 1.05, 1], opacity: [0.75, 1, 0.75] }}
-        transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute h-5 w-5 rounded-full"
-        style={{
-          background:
-            'radial-gradient(circle, #93c5fd 0%, var(--accent-primary) 60%, transparent 100%)',
-          boxShadow: '0 0 14px rgba(147,197,253,0.65)',
-        }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.92, 1, 0.92] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-      />
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      {NODES.map((n, i) =>
+        n.active ? (
+          <motion.span
+            key={i}
+            className="absolute h-2 w-2 rounded-[3px] bg-accent"
+            style={{ left: `${n.x}%`, top: `${n.y}%`, boxShadow: '0 0 12px var(--accent-glow)' }}
+            animate={{ opacity: [0.35, 1, 0.35], scale: [1, 1.3, 1] }}
+            transition={{ duration: 2.6, delay: n.delay, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ) : (
+          <span
+            key={i}
+            className="absolute h-1.5 w-1.5 rounded-[2px] bg-border-strong"
+            style={{ left: `${n.x}%`, top: `${n.y}%`, opacity: 0.5 }}
+          />
+        ),
+      )}
     </div>
   );
 }
 
 export function Hero() {
   return (
-    <section className="relative flex min-h-screen items-center justify-center px-6 pb-24 pt-20 sm:pt-24">
-      <ShaderBackground />
-
+    <section className="relative overflow-hidden bg-surface-accent">
+      {/* dot-grid + swarm field + accent glow, blended into the next section at the bottom */}
       <div
-        className="pointer-events-none absolute inset-0 z-[1]"
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-60"
         style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(9,9,11,0.08) 0%, rgba(9,9,11,0.35) 58%, rgba(9,9,11,0.72) 100%)',
+          backgroundImage: 'radial-gradient(var(--border) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
         }}
       />
-
-      <HeroOrb />
+      <SwarmField />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[38%] h-[520px] w-[740px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-70"
+        style={{ background: 'radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 68%)' }}
+      />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-bg" />
 
       <motion.div
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
-        className="relative z-10 mx-auto w-full max-w-4xl rounded-2xl border border-white/[0.14] bg-[rgba(12,14,20,0.72)] px-8 py-14 backdrop-blur-[30px] shadow-[0_20px_80px_rgba(0,0,0,0.55)] glass-highlight glass-noise sm:px-14 sm:py-20"
+        className="relative z-10 mx-auto flex min-h-[86vh] max-w-4xl flex-col items-center justify-center px-6 py-24 text-center"
       >
-        <div className="text-center">
-          <motion.div
-            variants={fadeUp}
-            className="mb-10 inline-flex items-center gap-2 rounded-full border border-white/[0.14] bg-black/35 px-5 py-2 text-sm text-friday-text-secondary"
-          >
-            <span className="h-2 w-2 rounded-full bg-friday-accent animate-pulse" />
-            Powered by Browserbase + Stagehand
-          </motion.div>
+        <motion.div variants={riseAndFade}>
+          <Eyebrow live>Voice-driven browser swarm</Eyebrow>
+        </motion.div>
 
-          <motion.h1
-            variants={fadeUp}
-            className="text-5xl font-bold leading-[1.05] tracking-tight text-friday-text-primary sm:text-7xl md:text-8xl"
-          >
-            Your AI co-pilot
-            <br />
-            <span className="animate-gradient-text">for the web.</span>
-          </motion.h1>
+        <motion.h1
+          variants={riseAndFade}
+          className="mt-6 font-display text-[clamp(2.75rem,7vw,5.5rem)] font-medium leading-[1.02] tracking-[-0.02em] text-text"
+        >
+          One command.
+          <br />
+          <Highlighter>The whole list.</Highlighter>
+        </motion.h1>
 
-          <motion.p
-            variants={fadeUp}
-            className="mx-auto mt-8 max-w-2xl text-xl leading-relaxed text-friday-text-secondary sm:text-2xl"
-          >
-            Speak a command. Watch a cloud browser execute it. Hear the result.
-          </motion.p>
+        <motion.p
+          variants={riseAndFade}
+          className="mx-auto mt-7 max-w-xl text-lg leading-relaxed text-text-muted"
+        >
+          Verifying vendors, checking records, pulling the same field from dozens of sites —
+          repetitive browser work that scales badly by hand. FRIDAY fans it out across cloud
+          browsers running in parallel, and you watch and steer the whole batch by voice.
+        </motion.p>
 
-          <motion.div
-            variants={fadeUp}
-            className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row"
-          >
-            <Link
-              href="/workspace"
-              className="focus-ring rounded-full bg-friday-accent/90 px-10 py-4 text-base font-semibold text-white shadow-glow transition-all duration-200 hover:bg-friday-accent-hover hover:shadow-[0_0_30px_var(--accent-glow)]"
-            >
-              Try Friday &rarr;
-            </Link>
-            <a
-              href="https://github.com/yawbtng/F.R.I.D.A.Y"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="focus-ring rounded-full border border-white/[0.12] bg-white/[0.03] px-10 py-4 text-base font-medium text-friday-text-secondary backdrop-blur-lg transition-all duration-200 hover:border-white/[0.2] hover:text-friday-text-primary"
-            >
-              View on GitHub
-            </a>
-          </motion.div>
-        </div>
+        <motion.div
+          variants={riseAndFade}
+          className="mt-10 flex flex-col items-center gap-3 sm:flex-row"
+        >
+          <Link href="/friday" className={ctaPrimary}>
+            Start a swarm →
+          </Link>
+          <a href="#demo" className={ctaSecondary}>
+            Watch it run
+          </a>
+        </motion.div>
+
+        <motion.div variants={riseAndFade} className="mt-12 inline-flex items-center gap-3">
+          <BrowserbaseMark className="h-9 w-9" />
+          <span className="font-mono text-2xl font-semibold tracking-tight text-text">
+            <span className="font-normal text-text-muted">Built on </span>Browserbase
+          </span>
+        </motion.div>
       </motion.div>
     </section>
   );
