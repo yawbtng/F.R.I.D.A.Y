@@ -1,116 +1,93 @@
-# F.R.I.D.A.Y. — Voice Browser Agent 🎙️🌐
+# F.R.I.D.A.Y. 🎙️🌐
 
-> Speak a command. Watch a cloud browser execute it. Hear the result.
+> **Say it once. Twenty browsers go do it.**
 
-F.R.I.D.A.Y. is a voice-controlled browser agent modeled after Tony Stark's AI co-pilot. Talk to her, and she'll navigate websites, search the web, extract data, and report back — all by voice, in real time.
+Most web work is the same lookup repeated across a dozen sites — verifying vendors, checking registrations, comparing prices. Humans do it one tab at a time. F.R.I.D.A.Y. does it in parallel: you **speak** a task, she plans the targets, fans out up to ~20 live cloud browsers with [Browserbase](https://browserbase.com), drives each one with [Stagehand](https://stagehand.dev), narrates progress as tiles come back, and hands you a report — pass/fail chart, an AI-drawn diagram, and a printable export.
 
-Built with [Browserbase](https://browserbase.com) + [Stagehand](https://stagehand.dev) + [LiveKit](https://livekit.io) + [Convex](https://convex.dev).
+The anchor use case is verification — *"are these 15 businesses real and active?"* — but the engine is general-purpose. One voice command, twenty browsers, one report.
 
-## At a Glance
+<!-- DEMO VIDEO: embed here -->
+> 🎬 **Demo video coming here.**
 
-- **Voice-controlled browser automation** powered by Stagehand v3
-- **Real-time voice pipeline**: Deepgram STT → Claude LLM → Cartesia TTS
-- **Live browser preview** via Browserbase debug iframe
-- **Three modes**: Conversation, Web Search, and Browser Control
-- **Session history** with Convex real-time database
-- **F.R.I.D.A.Y. personality**: Tactical, concise, dry wit — not a generic assistant
+## What she can do
 
-## How It Works
+- **Voice-to-swarm**: "Verify these are real businesses: Tesla, Apple, Stripe…" → an LLM plans one target per browser → the fleet launches on your go-ahead
+- **Live grid**: every browser is a real, watchable session — click a tile for the live view
+- **Talk while it runs**: F.R.I.D.A.Y. narrates progress and answers questions mid-flight
+- **Change your mind mid-run**: "actually, check Costco instead of Walmart" swaps **one** browser without restarting the rest
+- **Report**: pass/fail donut, per-target findings, an agent-authored Mermaid diagram, print/PDF export
+- **Fail-fast honesty**: CAPTCHA-walled sites settle as `blocked` in seconds instead of grinding; nothing is invented
+
+## How it works
 
 ```
-User speaks → WebRTC → LiveKit Cloud
-                          ↓
-              STT (Deepgram Nova-3) → text
-                          ↓
-              LLM (Claude) → decides action
-                          ↓
-              Tool call → Next.js API → Stagehand → Browserbase
-                          ↓
-              Result → TTS (Cartesia Sonic-3) → voice → User hears response
+you speak ──▶ gpt-realtime-mini (Vercel AI Gateway, WebSocket)
+                    │  tool calls (planTask / runSwarm / retargetTile / …)
+                    ▼
+             client dispatch (use-friday) ──▶ swarm engine (use-swarm)
+                    │                                │ fan-out, client-driven
+                    ▼                                ▼
+             /api/swarm/plan (LLM planner)    N × Browserbase sessions
+                                              driven by Stagehand v3
+                                                     │
+                    report ◀── /api/swarm/summary ◀──┘  (+ diagram, PDF export)
 ```
 
-F.R.I.D.A.Y. runs as two processes:
-1. **Next.js app** (`apps/web/`) — frontend + browser API routes that drive Stagehand
-2. **LiveKit Agent Worker** (`agent/`) — voice pipeline + tool execution
+No backend orchestrator: the browser tab **is** the orchestrator. Each target is an independent short-lived API call chain (navigate → act → extract → screenshot → release). Voice is transport-only; tools execute client-side.
+
+| Component | Technology |
+|-----------|-----------|
+| Cloud browsers | Browserbase (live view + session replay) |
+| Browser driving | Stagehand v3 (`agent` + structured `extract`) |
+| Realtime voice | Vercel AI SDK `experimental_useRealtime` → AI Gateway → `gpt-realtime-mini` |
+| Planning / report / diagram | OpenRouter (GPT-4.1 family by default) |
+| Web search | Exa (when a target has no known URL) |
+| Frontend | Next.js 15 + Tailwind, theme-aware design system |
+| Run history | localStorage (Convex optional) |
 
 ## Quickstart
 
-### Prerequisites
-
-- Node.js ≥ 20
-- [pnpm](https://pnpm.io/installation)
-- API keys for: [Browserbase](https://browserbase.com), [Anthropic](https://console.anthropic.com), [LiveKit](https://cloud.livekit.io), [Convex](https://convex.dev)
-
-### Setup
+**Prerequisites:** Node ≥ 20, [pnpm](https://pnpm.io/installation), and API keys for [Browserbase](https://browserbase.com), [Vercel AI Gateway](https://vercel.com/ai-gateway), [OpenRouter](https://openrouter.ai), [Exa](https://dashboard.exa.ai).
 
 ```bash
-# Clone
 git clone https://github.com/yawbtng/F.R.I.D.A.Y.git && cd F.R.I.D.A.Y
-
-# Install
 pnpm install
 
-# Configure
-cp .env.example .env.local
-# Fill in your API keys
+cp .env.example .env
+# fill in your keys — see comments in .env.example
 
-# Start Convex
-npx convex dev
-
-# Start the agent worker (separate terminal)
-cd agent && pnpm dev
-
-# Start the app (separate terminal)
-cd apps/web && pnpm dev
-
-# Open http://localhost:3000 and start talking
+pnpm --filter @friday/web dev
+# open http://localhost:3000/friday — tap the mic and talk
 ```
 
-## Demo Commands
+`/friday` is the voice command center. `/swarm` is the same engine with a text box (no mic needed).
 
-Try these:
+### Try saying
 
-- `"Go to Hacker News and tell me the top 3 stories"`
-- `"Search for the latest SpaceX news"`
-- `"Navigate to GitHub trending and extract the top repos"`
-- `"What's the difference between TCP and UDP?"` _(no tools — just conversation)_
-- `"Click the top story and summarize it"`
+- *"Verify these are real registered businesses: Tesla, Apple, Stripe."*
+- *"Compare the price of AirPods Pro across Best Buy, Walmart, and Target."*
+- *"Actually — check Costco instead of Walmart."* (mid-run)
+- *"Show me the Tesla one."* · *"Draw me a diagram of the results."* · *"Stop."*
 
-## Architecture
+### Cost notes (read before big runs)
+
+- Every target is a real Browserbase session — a 15-target run is 15 sessions. Sessions are released the moment each target settles.
+- **Proxies are off by default** (`BB_PROXIES=1` to enable). Government registries and other bot-walled sites will come back `blocked` without them; proxies bill per GB, so flip them on per run, deliberately.
+- Realtime voice must use a Gateway WebSocket-available model — `openai/gpt-realtime-mini` is the verified one. `apps/web/scripts/verify-realtime-token.ts` checks; `apps/web/scripts/probe-realtime.ts` is a full headless voice-loop test (no mic needed).
+
+## Repository layout
 
 ```
-Friday - VBA/
-├── apps/web/          Next.js 14 — frontend + browser API routes
-├── agent/             LiveKit Agent Worker — voice pipeline + tools
-├── convex/            Real-time database schema (shared)
-├── tests/             Unit, integration, and smoke tests
-└── docs/PLAN.md       Comprehensive implementation plan
+apps/web/            Next.js app — UI, swarm engine (hooks/), API routes
+  app/friday/        voice command center (the main surface)
+  app/swarm/         text-driven swarm (same engine)
+  hooks/use-swarm.ts the portable swarm engine
+  hooks/use-friday.ts voice ⇄ swarm orchestrator (tool dispatch)
+  scripts/           headless verify/probe harnesses
+agent/               legacy v1 voice worker (LiveKit pipeline) — superseded by /friday
+convex/              optional persistence schema
+tests/               unit / integration / smoke
 ```
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Cloud Browser | Browserbase + Stagehand v3 | Headless Chrome in the cloud, AI-powered automation |
-| Voice Pipeline | LiveKit Agents | WebRTC transport, STT/LLM/TTS orchestration |
-| STT | Deepgram Nova-3 | Speech-to-text (via LiveKit inference) |
-| LLM | Claude Sonnet | Intent understanding + response generation |
-| TTS | Cartesia Sonic-3 | Text-to-speech (via LiveKit inference) |
-| Database | Convex | Real-time session + command persistence |
-| Frontend | Next.js 14 + Tailwind | Dark-mode UI with live browser preview |
-
-## Environment Variables
-
-See [`.env.example`](.env.example) for all required variables with descriptions.
-
-No separate keys needed for Deepgram or Cartesia — they're bundled in LiveKit Cloud.
-
-## Tech Stack
-
-- [Browserbase](https://browserbase.com) — Cloud browser infrastructure
-- [Stagehand](https://stagehand.dev) — AI browser automation SDK
-- [LiveKit](https://livekit.io) — Real-time voice/video infrastructure
-- [Convex](https://convex.dev) — Real-time backend-as-a-service
-- [Next.js](https://nextjs.org) — React framework
-- [Tailwind CSS](https://tailwindcss.com) — Utility-first styling
 
 ## License
 

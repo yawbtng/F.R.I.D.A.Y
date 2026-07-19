@@ -39,5 +39,18 @@ test-run logs, not guesses.
       turnstile; Convex circuit breaker (one warning, then quiet)
 - [ ] P4: End-to-end demo dry-run (proxies ON for that run only), then record
 
+## Demo + public-repo prep (user scope, 2026-07-18)
+Decisions: NO deploy (proxy + plan cost exposure); demo is recorded locally;
+repo stays public; eve/Vercel integration explicitly out of scope.
+- [x] README rewritten for the current product (swarm + realtime voice; old
+      LiveKit-era README described an app that no longer matches)
+- [x] .env.example corrected (REALTIME_MODEL=gpt-realtime-mini — old value
+      400s the WS; added BB_PROXIES + model overrides; Convex marked optional)
+- [x] LICENSE added (MIT, GitHub handle only — no personal name)
+- [ ] Secrets/PII audit of FULL git history (repo is ALREADY public) — in flight
+- [ ] Remediate audit findings (rotate keys / scrub if any)
+- [ ] Merge the stack: #41 (phase-b-voice) → main, then #42 (phase-b-visuals)
+- [ ] Record demo (proxies ON for that run only), embed in README, post
+
 ## Review
 (to fill as phases land)
