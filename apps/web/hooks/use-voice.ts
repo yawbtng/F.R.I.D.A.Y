@@ -84,13 +84,14 @@ export function useVoice({
       // date, and all 7 tools silently voided (the model ran as a stock chatbot). Assistant
       // text still streams via output_audio_transcript deltas, so the transcript panel works.
       outputModalities: ["audio"],
-      turnDetection: {
-        type: "server-vad", // auto turn-taking + barge-in
-        threshold: 0.5,
-        silenceDurationMs: 500,
-        prefixPaddingMs: 300,
-      },
-      inputAudioTranscription: { model: "whisper-1" },
+      // semantic-vad: the model decides when a THOUGHT is finished, not a silence timer.
+      // server-vad chopped speaker-echo into fragment turns ("Bye. / To / Okay") that
+      // whisper then mis-transcribed and FRIDAY earnestly answered. Gateway-ACK-verified
+      // via probe-realtime.ts (PROBE_ACK_ONLY) before adopting.
+      turnDetection: { type: "semantic-vad" },
+      // gpt-4o-mini-transcribe: far better short-utterance accuracy than whisper-1.
+      // Also ACK-verified. (Echo is still physics — record with headphones.)
+      inputAudioTranscription: { model: "gpt-4o-mini-transcribe" },
     }),
     [instructions, voice],
   );

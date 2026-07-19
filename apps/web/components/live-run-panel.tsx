@@ -42,12 +42,17 @@ export function LiveRunPanel({
   phase,
   elapsed,
   title,
+  listening,
 }: {
   messages: UIMessage[];
   tiles: Tile[];
   phase: string;
   elapsed: number;
   title?: string;
+  /** True while the mic is capturing the user's speech — the final transcript arrives
+   *  asynchronously (often after FRIDAY starts replying), so this bubble is the instant
+   *  "I hear you" signal. */
+  listening?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -61,11 +66,11 @@ export function LiveRunPanel({
   const errored = tiles.filter((t) => t.status === 'error').length;
   const running = phase === 'running' || phase === 'spawning';
 
-  // Follow the feed as turns/tiles come in.
+  // Follow the feed as turns/tiles come in (and when the listening bubble appears).
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [turns.length, settled]);
+  }, [turns.length, settled, listening]);
 
   return (
     <div className="h-full flex flex-col bg-surface border-l border-border">
@@ -110,6 +115,20 @@ export function LiveRunPanel({
               </div>
             ),
           )
+        )}
+
+        {/* Instant "I hear you" while speech is being captured — the real transcript
+            arrives asynchronously and replaces this in the flow of turns. */}
+        {listening && (
+          <div className="flex justify-end">
+            <div className="px-3 py-2 rounded-lg bg-surface-2 border border-border">
+              <span className="flex gap-1 items-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse [animation-delay:300ms]" />
+              </span>
+            </div>
+          </div>
         )}
       </div>
 

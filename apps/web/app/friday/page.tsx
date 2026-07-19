@@ -307,6 +307,7 @@ export default function FridayPage() {
       phase={phase}
       elapsed={elapsed}
       title={planTitle || task}
+      listening={voice.voiceState === 'listening'}
     />
   );
 

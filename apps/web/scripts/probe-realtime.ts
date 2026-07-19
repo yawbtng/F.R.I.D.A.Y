@@ -126,16 +126,27 @@ async function main(): Promise<void> {
     month: "long",
     day: "numeric",
   });
+  // Defaults mirror the app's use-voice config. Env overrides for A/B-testing candidate
+  // configs against the Gateway (a rejected field voids the WHOLE update, so ALWAYS
+  // check CONFIG_ACK here before adopting a config change in the app):
+  //   PROBE_TD=server-vad          old silence-timer turn detection (pre-2026-07-18)
+  //   PROBE_TRANSCRIBE=<model>     e.g. whisper-1 instead of gpt-4o-mini-transcribe
+  //   PROBE_ACK_ONLY=1             exit right after CONFIG_ACK (fast config testing)
   const sessionConfig: Record<string, unknown> = {
     voice: "marin",
     outputModalities: BAD_MODALITIES ? ["audio", "text"] : ["audio"],
-    turnDetection: {
-      type: "server-vad",
-      threshold: 0.5,
-      silenceDurationMs: 500,
-      prefixPaddingMs: 300,
+    turnDetection:
+      process.env.PROBE_TD === "server-vad"
+        ? {
+            type: "server-vad",
+            threshold: 0.5,
+            silenceDurationMs: 500,
+            prefixPaddingMs: 300,
+          }
+        : { type: "semantic-vad" },
+    inputAudioTranscription: {
+      model: process.env.PROBE_TRANSCRIBE || "gpt-4o-mini-transcribe",
     },
-    inputAudioTranscription: { model: "whisper-1" },
   };
   if (!NO_INSTRUCTIONS) sessionConfig.instructions = buildFridayInstructions(today);
 
@@ -233,6 +244,12 @@ async function main(): Promise<void> {
     // session-created may race ahead of our update; wait a beat for a session-updated too.
     const updated = await waitFor((e) => e.type === "session-updated", 5_000);
     summary.CONFIG_ACK = updated ? "yes(session-updated received)" : `partial(${ack.type} only, no session-updated)`;
+  }
+
+  if (process.env.PROBE_ACK_ONLY) {
+    if (!closed) ws.close();
+    printSummary(summary);
+    process.exit(summary.CONFIG_ACK.startsWith("yes") ? 0 : 1);
   }
 
   // ── TEST A: date awareness ─────────────────────────────────────────
