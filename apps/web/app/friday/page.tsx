@@ -48,11 +48,27 @@ export default function FridayPage() {
     planNotes,
     focusedId,
     setFocusedId,
+    diagram,
+    visualize,
+    messages,
     resetAll,
   } = useFriday();
 
   const [planning, setPlanning] = useState(false);
   const [textInput, setTextInput] = useState('');
+  const [diagramLoading, setDiagramLoading] = useState(false);
+
+  // Report-modal "Diagram" button (no-voice path): generate a Mermaid diagram from the finished run.
+  const doVisualize = async () => {
+    setDiagramLoading(true);
+    try {
+      await visualize();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'diagram failed');
+    } finally {
+      setDiagramLoading(false);
+    }
+  };
 
   // Manual plan path (shared by the task box + the bottom control bar). planFromTask keeps
   // phase at 'idle', so the page owns the "planning…" moment (same as the swarm page).
@@ -286,7 +302,7 @@ export default function FridayPage() {
 
   const rightPanel = (
     <LiveRunPanel
-      messages={voice.messages}
+      messages={messages}
       tiles={tiles}
       phase={phase}
       elapsed={elapsed}
@@ -309,6 +325,9 @@ export default function FridayPage() {
             items={tiles}
             narrative={narrative}
             loading={reportLoading}
+            diagram={diagram}
+            diagramLoading={diagramLoading}
+            onVisualize={doVisualize}
             onClose={closeReport}
           />
         )}

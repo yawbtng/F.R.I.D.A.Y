@@ -61,7 +61,7 @@ plan doc). Nothing here blocks the demo; everything here is a real feature we in
   Function on a schedule; re-runs the swarm and pings only on change. Turns the demo into a
   product a compliance team pays for. Deploy machinery already proven on the x-ratio project.
   Gotcha: `!`-negation in `.gitignore` silently empties the Function archive; Functions don't
-  bypass plan caps. Size: L. **Strongest business/hiring signal — showcases the whole platform.**
+  bypass plan caps. Size: L. **Strongest business case — showcases the whole platform.**
 
 ### Reliability + trust
 - **Human-in-the-loop takeover** — mid-run, hand the live view to the human for 2FA/captcha/

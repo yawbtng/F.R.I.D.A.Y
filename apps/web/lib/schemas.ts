@@ -105,3 +105,29 @@ export const SummaryOutputSchema = z.object({
 });
 
 export type SummaryOutput = z.infer<typeof SummaryOutputSchema>;
+
+// Diagram: the finished-run data the model turns into a Mermaid diagram whose TYPE it chooses.
+export const DiagramRequestSchema = z.object({
+  task: z.string().max(2000).optional(),
+  hint: z.string().max(500).optional(), // optional user steer ("show it as a flow")
+  results: z
+    .array(
+      z.object({
+        label: z.string(),
+        status: z.string(),
+        result: z.string().optional(),
+      }),
+    )
+    .min(1),
+});
+
+// Strict-mode-safe output (all fields required). The model authors valid Mermaid source and
+// names the shape it picked. `kind` is a display label only — the real diagram type is the
+// source's first directive line. Client renders + guards against malformed source.
+export const DiagramOutputSchema = z.object({
+  title: z.string(),
+  kind: z.string(),
+  mermaid: z.string(),
+});
+
+export type DiagramOutput = z.infer<typeof DiagramOutputSchema>;

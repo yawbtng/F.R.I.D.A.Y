@@ -12,7 +12,7 @@ import { z } from "zod";
 export const realtimeTools = {
   planTask: tool({
     description:
-      "Plan a browser swarm for the user's task. Turns a free-form request (e.g. 'verify these 15 businesses are real and active') into a list of targets, one per cloud browser. Call this as soon as the user describes what they want done.",
+      "Plan a browser swarm to look something up on the live web. Turns ANY request OR question that needs real/current information — 'verify these 15 businesses are real', 'what games are on this week', 'compare the price of X across these stores' — into a list of targets, one per cloud browser. Call this instead of answering from your own knowledge; call it as soon as the user asks something you'd need the web to answer.",
     inputSchema: z.object({
       task: z
         .string()
@@ -22,7 +22,7 @@ export const realtimeTools = {
 
   updatePlan: tool({
     description:
-      "Edit the current plan before running: add, remove, reorder, or rewrite targets. Call whenever the user asks to change the plan by voice ('drop Walmart', 'add Costco', 'check its license status too').",
+      "Edit the current plan BEFORE the swarm launches: add, remove, reorder, or rewrite targets ('drop Walmart', 'add Costco', 'check its license status too'). Once the swarm is running, changing one target is retargetTile's job, not this — updatePlan cannot touch live browsers.",
     inputSchema: z.object({
       operations: z
         .array(
@@ -73,6 +73,38 @@ export const realtimeTools = {
       "Open the live browser view for one target so the user can watch it. Call when the user says 'show me X' or 'pull up the Acme one'.",
     inputSchema: z.object({
       idOrLabel: z.string().describe("The target id or label to focus, e.g. 'Acme Corp'."),
+    }),
+  }),
+
+  retargetTile: tool({
+    description:
+      "Redirect ONE browser to a different target WITHOUT restarting the swarm — call when the user changes their mind about a single target ('actually, check Costco instead of Walmart', 'have the Texas one look up the LLC filing instead'). The other browsers keep working; only that slot gets a fresh browser pointed at the new thing. Returns immediately — you'll get a [status] note when the redirected browser settles.",
+    inputSchema: z.object({
+      idOrLabel: z
+        .string()
+        .describe("Which existing target to replace, by id or display label, e.g. 'Walmart'."),
+      label: z.string().nullable().describe("New display name, e.g. 'Costco'; null to keep."),
+      goal: z
+        .string()
+        .nullable()
+        .describe("New instruction for that browser's page; null to keep the old goal."),
+      extract: z
+        .string()
+        .nullable()
+        .describe("New one-question extraction; null to keep the old one."),
+    }),
+  }),
+
+  renderDiagram: tool({
+    description:
+      "Draw a diagram in the report when a picture makes the findings clearer — how the swarm fanned out across targets, how results relate, a breakdown, or a flow. YOU write the Mermaid source and pick the diagram type that fits the task. Call after a run when a visual would help, or when the user asks to diagram / visualize / chart something. Don't diagram a plain short list.",
+    inputSchema: z.object({
+      title: z.string().describe("Short title for the diagram."),
+      mermaid: z
+        .string()
+        .describe(
+          "Valid Mermaid v11 source. First line is the directive (e.g. 'flowchart LR'). Put node text in double quotes, keep labels short, use simple ids (n1, n2), and never put parentheses/brackets/quotes inside a label — so it parses.",
+        ),
     }),
   }),
 };

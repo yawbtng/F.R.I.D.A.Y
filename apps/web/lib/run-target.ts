@@ -76,7 +76,16 @@ async function attempt(
   if (!agentRes.ok) {
     throw new Error((await agentRes.json().catch(() => ({}))).error || `agent HTTP ${agentRes.status}`);
   }
-  const agentMsg = String((await agentRes.json())?.data?.message ?? "");
+  const agentData = (await agentRes.json())?.data as
+    | { message?: string; blocked?: boolean }
+    | undefined;
+  const agentMsg = String(agentData?.message ?? "");
+  // Fast settle: the route flags nav-time CAPTCHA walls (`blocked: true`) and the agent
+  // narrates ones it hit mid-run. Either way the page is a bot-wall — skip the extract
+  // pass and mark Blocked now instead of grinding another LLM call against the wall.
+  if (agentData?.blocked || isBlocked(agentMsg)) {
+    return { status: "blocked", result: agentMsg || "blocked", agentMsg };
+  }
 
   const exRes = await fetch(`${base}/api/browser/extract`, {
     method: "POST",
@@ -97,8 +106,6 @@ async function attempt(
   } else {
     ({ status, result } = classifyGeneric(data));
   }
-  // The extract can miss a "Robot or human?" / CAPTCHA gate the agent narrated hitting.
-  if (status !== "blocked" && isBlocked(agentMsg)) status = "blocked";
   return { status, result, agentMsg };
 }
 

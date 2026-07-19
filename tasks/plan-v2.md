@@ -1,9 +1,8 @@
 # F.R.I.D.A.Y. v2 — Voice-Commanded Browser Swarm
 
 > Supersedes the original 5-phase build (`tasks/todo.md`), which is ~85% done (single-browser).
-> **Strategic goal:** get noticed/hired by Browserbase. The uniquely-Browserbase thing is parallel
-> cloud browsers on demand, so the SWARM is the headline and voice is garnish added after.
-> CEO review: `~/.gstack/projects/yawbtng-F.R.I.D.A.Y/ceo-plans/2026-06-21-friday-swarm.md`
+> **Product thesis:** the uniquely-Browserbase capability is parallel cloud browsers on
+> demand, so the SWARM is the headline and voice is the interface layered on after.
 
 ## Locked decisions (CEO review, 2026-06-21)
 - **Sequencing: SWARM-FIRST.** Prove the multi-browser headline + record the clip BEFORE adding voice.

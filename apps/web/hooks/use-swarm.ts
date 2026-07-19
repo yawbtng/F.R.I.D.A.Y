@@ -11,6 +11,7 @@ import type { Tile, TileState } from '@/components/swarm-grid';
 import type { SwarmTarget } from '@/lib/swarm-target';
 import type { ReportNarrative } from '@/lib/report';
 import { runTarget, isHttpUrl, type RunSession } from '@/lib/run-target';
+import { saveRun, patchRun, compactTiles } from '@/lib/run-history';
 
 export interface SpawnedBrowser {
   browserId: string;
@@ -31,7 +32,7 @@ const drive = (b: RunSession, target: SwarmTarget, onProgress?: (note: string) =
   runTarget('', b, target, onProgress);
 
 /** Release one cloud session immediately so it stops billing. */
-function releaseOne(b: SpawnedBrowser) {
+function releaseOne(b: { sessionId: string }) {
   fetch('/api/fleet', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
@@ -76,6 +77,14 @@ export function useSwarm() {
   tilesRef.current = tiles; // always-latest snapshot for the report generator
   const autoReportRef = useRef(false); // auto-open the report once per run
   const cancelledRef = useRef(false); // set by cancel()/reset() to halt the in-flight run
+  // Per-tile generation counter, bumped by retarget(): a superseded closure (original run,
+  // stealth retry, or an earlier retarget of the same slot) captures its generation at start
+  // and drops its tile writes if the slot has since been retargeted — otherwise the old
+  // session's death would clobber the new target's live state when it settles.
+  const tileGen = useRef<Record<number, number>>({});
+  // The localStorage record for the current run (lib/run-history) — created when the run
+  // finishes, then patched as the narrative lands or a retarget changes the findings.
+  const runRecordIdRef = useRef<string | null>(null);
 
   // Release the fleet if the consumer unmounts mid-run.
   useEffect(() => () => releaseFleet(fleetRef.current), []);
@@ -101,6 +110,7 @@ export function useSwarm() {
 
       setError('');
       cancelledRef.current = false;
+      tileGen.current = {}; // fresh grid — no slot has been retargeted yet
       setPhase('spawning');
       try {
         const res = await fetch('/api/fleet', {
@@ -133,20 +143,26 @@ export function useSwarm() {
         await Promise.allSettled(
           targets.map(async (tgt, i) => {
             const t0 = Date.now();
-            updateTile(i, { status: 'working' });
+            // Generation-guarded writes: if this slot gets retargeted mid-run, this closure's
+            // session dies (released) and its remaining writes must not clobber the new target.
+            const gen = tileGen.current[i] ?? 0;
+            const guarded = (patch: Partial<Tile>) => {
+              if ((tileGen.current[i] ?? 0) === gen) updateTile(i, patch);
+            };
+            guarded({ status: 'working' });
             let status: TileState = 'error';
             let result: string | undefined;
             try {
-              const r = await drive(browsers[i], tgt, (note) => updateTile(i, { note }));
+              const r = await drive(browsers[i], tgt, (note) => guarded({ note }));
               status = r.status;
               result = r.result;
-              if (r.url) updateTile(i, { url: r.url });
+              if (r.url) guarded({ url: r.url });
             } catch {
               status = 'error';
             }
             // Freeze the final frame, then release the session so it stops billing.
             const screenshotUrl = await captureFrame(browsers[i]);
-            updateTile(i, { status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
+            guarded({ status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
             releaseOne(browsers[i]);
           }),
         );
@@ -197,18 +213,22 @@ export function useSwarm() {
         unresolved.map(async ({ i }, k) => {
           const t0 = Date.now();
           const tgt = targetsRef.current[i];
+          const gen = tileGen.current[i] ?? 0; // same clobber guard as run() — see tileGen
+          const guarded = (patch: Partial<Tile>) => {
+            if ((tileGen.current[i] ?? 0) === gen) updateTile(i, patch);
+          };
           let status: TileState = 'error';
           let result: string | undefined;
           try {
-            const r = await drive(browsers[k], tgt, (note) => updateTile(i, { note }));
+            const r = await drive(browsers[k], tgt, (note) => guarded({ note }));
             status = r.status;
             result = r.result;
-            if (r.url) updateTile(i, { url: r.url });
+            if (r.url) guarded({ url: r.url });
           } catch {
             status = 'error';
           }
           const screenshotUrl = await captureFrame(browsers[k]);
-          updateTile(i, { status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
+          guarded({ status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
           releaseOne(browsers[k]);
         }),
       );
@@ -219,6 +239,92 @@ export function useSwarm() {
       setNarrative(null); // tiles changed — invalidate the cached report so it regenerates
     }
   }, [tiles, retrying, updateTile]);
+
+  /** Redirect ONE tile to a new target without restarting the swarm — "actually, check
+   *  Costco instead of Walmart". Bumps the slot's generation (so the superseded closure
+   *  can't clobber it), releases the old session (its in-flight drive fails fast as
+   *  SESSION_LOST), spawns a single fresh browser, and re-drives just that slot in place.
+   *  Mid-run, the other tiles keep working untouched. Returns the settled outcome. */
+  const retarget = useCallback(
+    async (
+      idOrLabel: string,
+      patch: Partial<Pick<SwarmTarget, 'label' | 'goal' | 'extract' | 'startUrl' | 'query'>>,
+    ) => {
+      const i = tilesRef.current.findIndex(
+        (t) => t.id === idOrLabel || t.label.toLowerCase() === idOrLabel.toLowerCase(),
+      );
+      if (i === -1) throw new Error(`no target named ${idOrLabel}`);
+      const prev = targetsRef.current[i];
+      if (!prev) throw new Error('nothing to retarget yet');
+
+      // A new label means the old startUrl/query point at the wrong thing — drop them unless
+      // the caller re-supplies (patch spreads after the clear, so explicit fields win). If
+      // neither survives, fall back to searching the new label.
+      const next: SwarmTarget = {
+        ...prev,
+        ...(patch.label ? { startUrl: undefined, query: undefined } : {}),
+        ...patch,
+        id: prev.id, // the grid slot keeps its identity
+      };
+      if (!next.startUrl && !next.query) next.query = next.label;
+      targetsRef.current[i] = next;
+
+      const gen = (tileGen.current[i] = (tileGen.current[i] ?? 0) + 1);
+      const guarded = (p: Partial<Tile>) => {
+        if (tileGen.current[i] === gen) updateTile(i, p);
+      };
+
+      const old = tilesRef.current[i];
+      if (old.sessionId) releaseOne({ sessionId: old.sessionId });
+      guarded({
+        label: next.label,
+        status: 'working',
+        result: undefined,
+        screenshotUrl: undefined,
+        ms: undefined,
+        note: undefined,
+        url: isHttpUrl(next.startUrl) ? next.startUrl : '',
+      });
+
+      try {
+        const res = await fetch('/api/fleet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count: 1, stealth: false }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'spawn failed');
+        const b: SpawnedBrowser = data.browsers[0];
+        fleetRef.current = [...fleetRef.current, b];
+        guarded({ sessionId: b.sessionId, token: b.token, liveViewUrl: b.liveViewUrl });
+
+        const t0 = Date.now();
+        let status: TileState = 'error';
+        let result: string | undefined;
+        try {
+          const r = await drive(b, next, (note) => guarded({ note }));
+          status = r.status;
+          result = r.result;
+          if (r.url) guarded({ url: r.url });
+        } catch {
+          status = 'error';
+        }
+        const screenshotUrl = await captureFrame(b);
+        guarded({ status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
+        releaseOne(b);
+        setNarrative(null); // findings changed — regenerate the report on next open
+        return { label: next.label, status, result };
+      } catch (e) {
+        guarded({
+          status: 'error',
+          result: e instanceof Error ? e.message : 'retarget failed',
+          note: undefined,
+        });
+        throw e;
+      }
+    },
+    [updateTile],
+  );
 
   // Fetch the AI narrative (headline / takeaway / notes). Reads tiles via a ref so its
   // identity is stable (the auto-open effect depends on it). The per-target rows are built
@@ -240,11 +346,11 @@ export function useSwarm() {
         }),
       });
       const data = await res.json();
-      setNarrative(
-        res.ok
-          ? { headline: data.headline ?? '', takeaway: data.takeaway ?? '', notes: data.notes ?? [] }
-          : { headline: 'Report unavailable', takeaway: data.error || 'Failed to synthesize.', notes: [] },
-      );
+      const n: ReportNarrative = res.ok
+        ? { headline: data.headline ?? '', takeaway: data.takeaway ?? '', notes: data.notes ?? [] }
+        : { headline: 'Report unavailable', takeaway: data.error || 'Failed to synthesize.', notes: [] };
+      setNarrative(n);
+      if (res.ok && runRecordIdRef.current) patchRun(runRecordIdRef.current, { narrative: n });
     } catch {
       setNarrative({ headline: 'Report unavailable', takeaway: 'Failed to synthesize the report.', notes: [] });
     } finally {
@@ -257,15 +363,31 @@ export function useSwarm() {
     if (!narrative && !reportLoading) generateReport();
   }, [narrative, reportLoading, generateReport]);
 
-  // Auto-open + synthesize the report the moment a run finishes (once per run).
+  // Auto-open + synthesize the report the moment a run finishes (once per run), and
+  // persist the run to local history (screenshots excluded — see lib/run-history).
   useEffect(() => {
     if (phase === 'done' && !autoReportRef.current) {
       autoReportRef.current = true;
+      runRecordIdRef.current = `run-${Date.now()}`;
+      saveRun({
+        id: runRecordIdRef.current,
+        ts: Date.now(),
+        task: taskRef.current,
+        tiles: compactTiles(tilesRef.current),
+      });
       setReportOpen(true);
       generateReport();
     }
     if (phase === 'idle') autoReportRef.current = false;
   }, [phase, generateReport]);
+
+  // Keep the saved record honest after the run: a stealth retry or a voice retarget can
+  // change findings while phase is still 'done' — mirror those into local history.
+  useEffect(() => {
+    if (phase === 'done' && runRecordIdRef.current) {
+      patchRun(runRecordIdRef.current, { tiles: compactTiles(tiles) });
+    }
+  }, [tiles, phase]);
 
   // Halt the in-flight run: release the fleet now (so pending agent/extract calls fail fast),
   // mark still-working tiles as stopped, and drop back to idle. Barge-in "stop" calls this.
@@ -289,6 +411,7 @@ export function useSwarm() {
     releaseFleet(fleetRef.current);
     fleetRef.current = [];
     targetsRef.current = [];
+    runRecordIdRef.current = null; // history record stays saved; just stop patching it
     setTiles([]);
     setPhase('idle');
     setElapsed(0);
@@ -316,6 +439,7 @@ export function useSwarm() {
     run,
     cancel,
     retryWithStealth,
+    retarget,
     reset,
     setError,
   };

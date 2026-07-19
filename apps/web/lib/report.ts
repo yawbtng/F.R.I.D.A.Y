@@ -50,6 +50,45 @@ export function buildReport(
   return { task, items, counts: { total: items.length, resolved, byStatus }, narrative: narrative ?? null };
 }
 
+/** Pass/fail donut as a pure SVG markup string — no charting dependency. ONE source of truth:
+ *  the report modal renders it with CSS-var colors (themes light/dark), the printable HTML export
+ *  renders it with fixed hex. Segments are stroked arcs on a circle via stroke-dasharray, laid
+ *  clockwise from 12 o'clock (rotate -90). `colorFor` maps each status to a fill; `center`/`sub`
+ *  print inside the ring (currentColor, so it inherits the caller's text color). */
+export function donutSvg(
+  byStatus: Record<string, number>,
+  colorFor: (status: string) => string,
+  opts?: { size?: number; stroke?: number; center?: string; sub?: string; track?: string; label?: string },
+): string {
+  const size = opts?.size ?? 108;
+  const stroke = opts?.stroke ?? 15;
+  const track = opts?.track ?? "rgba(0,0,0,0.08)";
+  const c = size / 2;
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const entries = Object.entries(byStatus).filter(([, n]) => n > 0);
+  const total = entries.reduce((s, [, n]) => s + n, 0) || 1;
+
+  let offset = 0;
+  const arcs = entries
+    .map(([status, n]) => {
+      const len = (n / total) * C;
+      const seg = `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${colorFor(status)}" stroke-width="${stroke}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" />`;
+      offset += len;
+      return seg;
+    })
+    .join("");
+
+  const center = opts?.center
+    ? `<text x="${c}" y="${c - (opts.sub ? size * 0.06 : 0)}" text-anchor="middle" dominant-baseline="central" font-size="${(size * 0.28).toFixed(1)}" font-weight="600" fill="currentColor">${opts.center}</text>`
+    : "";
+  const sub = opts?.center && opts?.sub
+    ? `<text x="${c}" y="${c + size * 0.15}" text-anchor="middle" dominant-baseline="central" font-size="${(size * 0.11).toFixed(1)}" fill="currentColor" opacity="0.55">${opts.sub}</text>`
+    : "";
+
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img"${opts?.label ? ` aria-label="${opts.label}"` : ""}><g transform="rotate(-90 ${c} ${c})"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${track}" stroke-width="${stroke}" />${arcs}</g>${center}${sub}</svg>`;
+}
+
 const countsLine = (m: ReportModel): string =>
   Object.entries(m.counts.byStatus)
     .map(([k, v]) => `${k}: ${v}`)
@@ -103,6 +142,14 @@ export function reportToPrintableHtml(m: ReportModel): string {
   const notes = m.narrative?.notes?.length
     ? `<h2>Notes</h2><ul>${m.narrative.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`
     : "";
+  const donut = donutSvg(m.counts.byStatus, (s) => BADGE[s] ?? "#6b7280", {
+    size: 92,
+    stroke: 13,
+    center: String(m.counts.resolved),
+    sub: `of ${m.counts.total}`,
+    track: "#eee",
+    label: `${m.counts.resolved} of ${m.counts.total} resolved`,
+  });
   return `<!doctype html><html><head><meta charset="utf-8"><title>F.R.I.D.A.Y. report</title><style>
     * { box-sizing: border-box; }
     body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #111; max-width: 820px; margin: 32px auto; padding: 0 24px; }
@@ -116,12 +163,14 @@ export function reportToPrintableHtml(m: ReportModel): string {
     .badge { color: #fff; border-radius: 4px; padding: 2px 7px; font-size: 11px; text-transform: uppercase; }
     .answer { font-weight: 600; } ul { margin: 0; padding-left: 18px; } li { margin: 3px 0; }
     .takeaway { margin-top: 20px; padding-top: 12px; border-top: 2px solid #111; }
+    .glance { display: flex; align-items: center; gap: 18px; margin: 0 0 20px; }
+    .glance .counts { margin: 0; }
     @media print { body { margin: 0; } a { color: #111; } }
   </style></head><body>
     <h1>✦ F.R.I.D.A.Y. verification report</h1>
     <p class="task">${esc(m.task)}</p>
     ${m.narrative?.headline ? `<p class="headline">${esc(m.narrative.headline)}</p>` : ""}
-    <p class="counts">Resolved ${m.counts.resolved} / ${m.counts.total}  ·  ${esc(countsLine(m))}</p>
+    <div class="glance">${donut}<p class="counts">Resolved ${m.counts.resolved} / ${m.counts.total}  ·  ${esc(countsLine(m))}</p></div>
     <table><tbody>${rows}</tbody></table>
     ${notes}
     ${m.narrative?.takeaway ? `<p class="takeaway"><strong>Takeaway:</strong> ${esc(m.narrative.takeaway)}</p>` : ""}
