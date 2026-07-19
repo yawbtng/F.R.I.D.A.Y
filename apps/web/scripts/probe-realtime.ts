@@ -41,8 +41,8 @@ const NO_INSTRUCTIONS = process.argv.includes("--no-instructions");
 const BAD_MODALITIES = process.argv.includes("--bad-modalities");
 const RUN_LABEL = `${NO_INSTRUCTIONS ? "control-no-instructions" : "instructed"}${BAD_MODALITIES ? "-bad-modalities" : ""}`;
 const TOKEN_URL = "http://localhost:3001/api/realtime/token";
-const LOG_PATH =
-  "/private/tmp/claude-501/-Users-yawbt-Documents-GitHub-Browserbase/0f273fea-01e6-45dc-8bdd-f6a73459c415/probe-events.jsonl";
+// Raw-event evidence log — override with PROBE_LOG=/path/to/file.jsonl
+const LOG_PATH = process.env.PROBE_LOG || "/tmp/friday-probe-events.jsonl";
 const PHASE_TIMEOUT_MS = 30_000;
 
 // ── logging ──────────────────────────────────────────────────────────

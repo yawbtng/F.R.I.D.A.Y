@@ -1,7 +1,7 @@
 # Friday — Voice Browser Agent
 
 ## What This Is
-Voice-controlled browser agent (F.R.I.D.A.Y. from MCU). Speak a command, watch a cloud browser execute it, hear the result. Built for Browserbase internship showcase.
+Voice-controlled browser agent (F.R.I.D.A.Y. from MCU). Speak a command, watch a cloud browser execute it, hear the result. A showcase of the Browserbase platform.
 
 ## Stack
 - **Frontend**: Next.js 14 (App Router) + Tailwind + shadcn + Framer Motion
