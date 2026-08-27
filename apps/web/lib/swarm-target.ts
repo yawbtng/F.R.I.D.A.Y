@@ -11,7 +11,11 @@ import {
   goalFor,
   mapStatus,
   isBlocked,
+  edgarSearchUrl,
+  edgarGoal,
+  EDGAR_EXTRACT,
 } from "./sos-adapters";
+import { wikiArticleUrl, factGoal, factExtract, FACT_MAX_STEPS, FACT_TIMEOUT_MS } from "./fact-source";
 import type { PlanTarget } from "./schemas";
 
 export interface SwarmTarget {
@@ -29,26 +33,94 @@ export interface SwarmTarget {
   extract: string;
   /** Execution engine. Default "stagehand"; "bb-agent" escalates to a Browserbase Agent run. */
   engine?: "stagehand" | "bb-agent";
+  /** Per-target agent step budget. Absent → the global AGENT_MAX_STEPS. KYB/EDGAR targets set
+   *  this low (the answer is on the landing page; extra steps only let the agent wander off it). */
+  maxSteps?: number;
+  /** Per-target attempt timeout (ms). Absent → the global ATTEMPT_TIMEOUT_MS. Fact lookups bump
+   *  this to catch slow-page outliers (a huge Wikipedia article can take ~55s to settle). */
+  timeoutMs?: number;
+  /** Skip the search-augmented retry: re-searching the open web can't beat a target already
+   *  pinned to ONE authoritative source, so the retry only wastes time. Set on fact targets
+   *  (pinned to Wikipedia). KYB targets get the same skip implicitly — runTarget also bails
+   *  out of the retry whenever `classify` is present, which covers BOTH KYB producers
+   *  (planToTargets and buildKybTargets), so they don't need to set this too. */
+  singlePass?: boolean;
   /** KYB-only classifier (mapStatus). Absent → generic done/blocked/error classification. */
   classify?: (data: unknown) => WorkerStatus;
 }
 
+/** EDGAR answers on the landing page — a tight step budget keeps the agent from navigating
+ *  away before the extract reads it (the cause of slow, wrong `notfound`s). */
+const KYB_MAX_STEPS = 4;
+
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "target";
 
+/** The company name to verify. Planner labels vary ("Tesla", "Tesla — SoS", "Tesla, Inc.",
+ *  "NVIDIA Corporation"): drop any " — portal" suffix, then a trailing legal suffix, so EDGAR
+ *  gets a clean, consistent query (a bare name matches EDGAR's search far more reliably than a
+ *  full legal name with commas). */
+const entityOf = (label: string): string => {
+  const base = label.split(/\s[—–-]\s/)[0].trim() || label.trim();
+  const cleaned = base
+    // Leading "The" breaks EDGAR's prefix match ("The Home Depot" -> no results, "Home Depot" -> found).
+    .replace(/^the\s+/i, "")
+    // Trailing legal suffix likewise ("Walmart Inc" -> no match, "Walmart" -> found).
+    .replace(/,?\s+(inc|incorporated|corp|corporation|co|company|llc|l\.l\.c|ltd|limited|plc|lp|llp)\.?$/i, "")
+    .trim();
+  return cleaned || base;
+};
+
 /** Map planner output (PlanTarget[]) into runnable SwarmTargets, assigning stable ids.
- *  Used by both the /swarm review UI and the verify-plan harness. */
+ *  Used by both the /swarm review UI and the verify-plan harness.
+ *
+ *  KYB override: a target the planner tagged `kind:"kyb"` is a company-registration check. We
+ *  do NOT trust the LLM's portal choice for these (it picks paywalled DE / slow SPAs / CAPTCHA
+ *  sites) — instead every KYB target is routed deterministically to SEC EDGAR with the tuned
+ *  goal + extract + the mapStatus classifier, which resolves fast and reliably (see sos-adapters). */
 export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
-  return planTargets.map((pt, i) => ({
-    id: `t${i}-${slug(pt.label)}`,
-    label: pt.label,
-    // strict-mode schema returns null (not undefined) for absent optional fields.
-    startUrl: pt.startUrl ?? undefined,
-    query: pt.query ?? undefined,
-    goal: pt.goal,
-    extract: pt.extract,
-    engine: pt.engine ?? undefined,
-  }));
+  return planTargets.map((pt, i) => {
+    const base = {
+      id: `t${i}-${slug(pt.label)}`,
+      label: pt.label,
+      engine: pt.engine ?? undefined,
+    };
+    if (pt.kind === "kyb") {
+      const entity = entityOf(pt.label);
+      return {
+        ...base,
+        startUrl: edgarSearchUrl(entity),
+        query: `${entity} SEC EDGAR company filings`, // retry fallback stays on-topic
+        goal: edgarGoal(entity),
+        extract: EDGAR_EXTRACT,
+        maxSteps: KYB_MAX_STEPS,
+        classify: mapStatus,
+      };
+    }
+    if (pt.kind === "fact") {
+      // Route to Wikipedia but KEEP the planner's own extract question (that's the per-target
+      // ask — "founding year?", "population?", "CEO?"); only the source + goal are overridden.
+      const topic = pt.label.split(/\s[—–-]\s/)[0].trim() || pt.label.trim();
+      return {
+        ...base,
+        startUrl: wikiArticleUrl(topic),
+        query: `${topic} Wikipedia`,
+        goal: factGoal(topic),
+        extract: factExtract(pt.extract),
+        maxSteps: FACT_MAX_STEPS,
+        timeoutMs: FACT_TIMEOUT_MS,
+        singlePass: true, // Wikipedia is the source; re-searching the open web won't beat it
+      };
+    }
+    return {
+      ...base,
+      // strict-mode schema returns null (not undefined) for absent optional fields.
+      startUrl: pt.startUrl ?? undefined,
+      query: pt.query ?? undefined,
+      goal: pt.goal,
+      extract: pt.extract,
+    };
+  });
 }
 
 /** KYB preset: the proven path, no LLM. Builds one target per state from the curated

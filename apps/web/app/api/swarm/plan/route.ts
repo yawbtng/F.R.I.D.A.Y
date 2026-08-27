@@ -53,11 +53,24 @@ For each target provide:
   isn't present, the agent should reply with nothing.
 - engine: leave null for normal targets. Set "bb-agent" ONLY for a genuinely open-ended target that
   needs full autonomous multi-step reasoning across an unknown site.
+- kind: routing hint. Set one of:
+    "kyb"  — verifying whether a COMPANY is a real / registered / active business. Put the plain
+             company name in label; the system routes to SEC EDGAR automatically (don't pick a URL).
+    "fact" — a FACTUAL lookup about a specific entity, place, person, product, or work (e.g. founding
+             year, CEO, headquarters, population, employee count, release date, director). Put the
+             subject in label (e.g. "Airbnb", "Tokyo", "Notion") and the precise question in extract;
+             the system routes to Wikipedia automatically, so DON'T pick a URL for these.
+    "general" — anything else (prices, live status, availability, specs on a specific site). Provide a
+             real startUrl/query as usual.
+  Prefer "fact" for stable facts about well-known subjects (Wikipedia is fast + reliable); use
+  "general" only when the answer is inherently NOT on Wikipedia (current prices, stock quotes, live
+  inventory, retailer-specific data).
 
 Rules:
 - READ-ONLY only. Never plan logins, purchases, form submissions that change state, or paid actions.
-- Flagship pattern — business Verification/KYB: given company names, target each company's official
-  registry (usually a U.S. state Secretary of State business search) and ask whether it is active.
+- Flagship pattern — business Verification/KYB: given company names, create ONE target per company with
+  kind:"kyb" and the plain company name as the label (e.g. "Tesla", "Costco"). Leave startUrl null; the
+  system supplies the registry. Ask whether the company is a registered/active business.
 - Keep the plan tight: at most ${MAX_TARGETS} targets. Split naturally-parallel work (many
   companies / many retailers / many portals) into one target each.
 - title: a short title summarizing the whole run.`;
@@ -79,6 +92,11 @@ For every target, interrogate it and fix it:
 - query: is it a strong web search that would surface the exact answer on its own? Rewrite weak
   queries. Every target MUST end with a non-empty query (it is also the automatic retry fallback).
 - extract: one precise question with the output format spelled out.
+- kind: preserve each target's kind. "kyb" -> SEC EDGAR and "fact" -> Wikipedia are routed by the
+  system, so DON'T pick URLs for those; just ensure the label is a clean subject name and (for "fact")
+  the extract is a precise question. Prefer "fact" over "general" for stable facts about well-known
+  subjects (founding year, CEO, HQ, population, release date). Only flip kind if the draft clearly
+  mislabeled a target (e.g. a live price marked "fact").
 
 Then fix the plan as a whole:
 - Remove redundant or duplicate targets (same site + same goal).

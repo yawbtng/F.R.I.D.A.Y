@@ -74,6 +74,13 @@ export const PlanTargetSchema = z.object({
   goal: z.string(),
   extract: z.string(),
   engine: z.enum(["stagehand", "bb-agent"]).nullable(),
+  // Routing hint used by planToTargets to override the target's source deterministically:
+  //  - "kyb"  = company-registration check -> SEC EDGAR (portal + goal + extract + classifier).
+  //  - "fact" = a factual lookup about an entity/place/person/product -> Wikipedia (portal + goal;
+  //             the planner's own `extract` question is kept). The open web is too slow/flaky to
+  //             drive per-site, so for these classes we never trust the LLM's URL choice.
+  //  - "general" (or null) = drive whatever startUrl/query the planner chose.
+  kind: z.enum(["kyb", "fact", "general"]).nullable(),
 });
 
 export const PlanOutputSchema = z.object({

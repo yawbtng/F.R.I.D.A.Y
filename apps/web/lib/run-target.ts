@@ -25,7 +25,18 @@ export interface RunResult {
   url?: string;
 }
 
-const ATTEMPT_TIMEOUT_MS = 75_000; // per attempt (agent + extract); 2 attempts worst-case ~150s
+// Per attempt (agent + extract). MUST stay under the /api/browser/agent route's maxDuration
+// (60s on Vercel) so the client aborts just before the platform would kill the function.
+// The old 75s let the agent outrun both the route AND the ~60s default session timeout — the
+// session ended mid-run, the CDP socket dropped (1006), and the next Stagehand call crashed on
+// a null page (`awaitActivePage`). With maxSteps capped low (below) a real lookup settles in
+// ~25-35s, so 55s is generous headroom, not a guillotine.
+const ATTEMPT_TIMEOUT_MS = 55_000;
+// A business-registry lookup is "search a name, read the status" — a handful of steps, not 25.
+// Fewer steps = the run finishes inside the session/route budget instead of grinding to a crash,
+// and each avoided step is one fewer LLM call billed. Override via AGENT_MAX_STEPS if a portal
+// genuinely needs more room.
+const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS ?? 8);
 
 /** A settled, useful answer — not worth retrying. */
 function isResolved(status: WorkerStatus, result: string): boolean {
@@ -60,7 +71,7 @@ async function attempt(
   target: SwarmTarget,
 ): Promise<{ status: WorkerStatus; result: string; agentMsg: string }> {
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` };
-  const signal = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
+  const signal = AbortSignal.timeout(target.timeoutMs ?? ATTEMPT_TIMEOUT_MS);
 
   const agentRes = await fetch(`${base}/api/browser/agent`, {
     method: "POST",
@@ -70,7 +81,7 @@ async function attempt(
       sessionId: session.sessionId,
       ...(url ? { startUrl: url } : {}),
       instruction: goal,
-      maxSteps: 25,
+      maxSteps: target.maxSteps ?? AGENT_MAX_STEPS,
     }),
   });
   if (!agentRes.ok) {
@@ -127,8 +138,9 @@ export async function runTarget(
   const r1 = await attempt(base, session, startUrl, target.goal, target.extract, target);
   if (isResolved(r1.status, r1.result)) return { status: r1.status, result: r1.result, url: startUrl };
 
-  // Agency retry — GENERAL targets only. KYB keeps the proven single pass + UI stealth retry.
-  if (!target.classify && target.query && r1.status !== "blocked") {
+  // Agency retry — GENERAL targets only. KYB (classify) and single-pass targets (facts, pinned
+  // to one authoritative source) skip it: re-searching the open web can't beat their source.
+  if (!target.classify && !target.singlePass && target.query && r1.status !== "blocked") {
     onProgress?.("retrying");
     if (searchResults.length === 0) searchResults = await searchUrls(base, session, target.query);
     const url2 = searchResults.find((u) => u !== startUrl);
