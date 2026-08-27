@@ -25,18 +25,46 @@ export interface RunResult {
   url?: string;
 }
 
-// Per attempt (agent + extract). MUST stay under the /api/browser/agent route's maxDuration
-// (60s on Vercel) so the client aborts just before the platform would kill the function.
-// The old 75s let the agent outrun both the route AND the ~60s default session timeout — the
-// session ended mid-run, the CDP socket dropped (1006), and the next Stagehand call crashed on
-// a null page (`awaitActivePage`). With maxSteps capped low (below) a real lookup settles in
-// ~25-35s, so 55s is generous headroom, not a guillotine.
+// Wall-clock budget for ONE attempt (agent call + extract call), split between the two below.
+// /api/browser/agent and /api/browser/extract are SEPARATE function invocations, each with its
+// own `maxDuration = 60` ceiling — so the attempt total is NOT capped at 60; only each individual
+// call is. What 55s actually bounds is the attempt against the Browserbase session lifetime
+// (300s, set in lib/browserbase.ts): the old 75s let an attempt outrun the then-~60s default
+// session timeout, the session ended mid-run, the CDP socket dropped (1006), and the next
+// Stagehand call crashed on a null page (`awaitActivePage`). With maxSteps capped low (below) a
+// real lookup settles in ~25-35s, so 55s is generous headroom, not a guillotine.
 const ATTEMPT_TIMEOUT_MS = 55_000;
+// The budget is split, NOT shared: one signal across both fetches made 55s a wall clock, so an
+// agent that returned at 51s having landed on exactly the right page handed the extract a ~4s
+// signal, it aborted instantly, and the tile settled `error` ("operation was aborted due to
+// timeout") one ~3s call short of the answer. So: carve a reserve out of the agent's share and
+// give the extract whatever is left, never less than the floor.
+//
+// 12s reserve — a `stagehand.extract()` on a settled page is one LLM call over the DOM snapshot,
+// ~2-4s measured; 12s covers a slow model without meaningfully shortening the agent (43s still
+// clears the ~25-35s a real lookup takes).
+const EXTRACT_RESERVE_MS = 12_000;
+// 10s floor — if the agent overruns its share the extract still gets a usable window rather than
+// a 0ms signal. Worst case the attempt overshoots ATTEMPT_TIMEOUT_MS by ~10s (65s), which is fine:
+// the extract route has its own 60s ceiling and the session has 300s.
+const EXTRACT_MIN_MS = 10_000;
+
+/** Read a positive-integer env var, clamped to the range the consuming API schema accepts.
+ *  Unguarded `Number(process.env.X)` turns a typo into NaN, which JSON.stringify emits as
+ *  `null` — and a zod `.optional()` field REJECTS null (it is not undefined), so one bad env
+ *  value failed EVERY target with a 400 VALIDATION_ERROR instead of one target. */
+function envInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(n)));
+}
+
 // A business-registry lookup is "search a name, read the status" — a handful of steps, not 25.
 // Fewer steps = the run finishes inside the session/route budget instead of grinding to a crash,
 // and each avoided step is one fewer LLM call billed. Override via AGENT_MAX_STEPS if a portal
-// genuinely needs more room.
-const AGENT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS ?? 8);
+// genuinely needs more room — clamped to AgentSchema's `.int().min(1).max(50)` so an out-of-range
+// override (AGENT_MAX_STEPS=60) is pinned to 50 instead of 400-ing the whole swarm.
+const AGENT_MAX_STEPS = envInt(process.env.AGENT_MAX_STEPS, 8, 1, 50);
 
 /** A settled, useful answer — not worth retrying. */
 function isResolved(status: WorkerStatus, result: string): boolean {
@@ -71,12 +99,18 @@ async function attempt(
   target: SwarmTarget,
 ): Promise<{ status: WorkerStatus; result: string; agentMsg: string }> {
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` };
-  const signal = AbortSignal.timeout(target.timeoutMs ?? ATTEMPT_TIMEOUT_MS);
+  // Per-attempt deadline, split across the two calls (see EXTRACT_RESERVE_MS): the agent may
+  // spend everything up to the reserve, the extract gets the remainder. A fast agent therefore
+  // leaves the extract a large budget; a slow one still leaves it EXTRACT_MIN_MS.
+  const deadline = Date.now() + (target.timeoutMs ?? ATTEMPT_TIMEOUT_MS);
+  const agentSignal = AbortSignal.timeout(
+    Math.max(EXTRACT_MIN_MS, deadline - Date.now() - EXTRACT_RESERVE_MS),
+  );
 
   const agentRes = await fetch(`${base}/api/browser/agent`, {
     method: "POST",
     headers,
-    signal,
+    signal: agentSignal,
     body: JSON.stringify({
       sessionId: session.sessionId,
       ...(url ? { startUrl: url } : {}),
@@ -98,10 +132,12 @@ async function attempt(
     return { status: "blocked", result: agentMsg || "blocked", agentMsg };
   }
 
+  // Whatever is left of the attempt budget, floored — the agent has already returned, so this
+  // is measured AFTER its cost is known, not carved out up front.
   const exRes = await fetch(`${base}/api/browser/extract`, {
     method: "POST",
     headers,
-    signal,
+    signal: AbortSignal.timeout(Math.max(EXTRACT_MIN_MS, deadline - Date.now())),
     body: JSON.stringify({ sessionId: session.sessionId, instruction: extractQ }),
   });
   if (!exRes.ok) {

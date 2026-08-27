@@ -44,12 +44,45 @@ function releaseFleet(browsers: SpawnedBrowser[]) {
   for (const b of browsers) releaseOne(b);
 }
 
-/** Capture the final page as a data-URL so the tile can freeze after the session closes. */
+/** Release the whole fleet in ONE request that survives page teardown.
+ *
+ *  releaseOne() above uses fetch(), which the browser is free to cancel the moment the document
+ *  goes away — so closing the tab mid-run released nothing. `navigator.sendBeacon` is the only
+ *  send guaranteed to be queued and flushed after teardown, but it can only POST a body (no
+ *  DELETE, no Authorization header), which is why /api/fleet/release exists alongside the
+ *  per-session DELETE. Falls back to keepalive fetch where sendBeacon is unavailable. */
+function releaseFleetBeacon(browsers: SpawnedBrowser[]) {
+  const sessionIds = browsers.map((b) => b.sessionId).filter(Boolean);
+  if (sessionIds.length === 0) return;
+  const body = JSON.stringify({ sessionIds });
+  if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+    navigator.sendBeacon('/api/fleet/release', new Blob([body], { type: 'application/json' }));
+    return;
+  }
+  fetch('/api/fleet/release', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+// The screenshot is decoration on a settled tile, so it must never be able to hold the run open.
+// In production the route's `maxDuration = 60` bounds it, but `next dev` does NOT enforce
+// maxDuration: against a hung capture the awaited call never returns, the tile stays 'working'
+// forever, Promise.allSettled never resolves, phase never reaches 'done', and the only way out is
+// a page reload (the "New" button is disabled while running). 20s is far above the ~1-3s a
+// capture+compress actually takes, so it only ever fires on a genuine hang.
+const SCREENSHOT_TIMEOUT_MS = 20_000;
+
+/** Capture the final page as a data-URL so the tile can freeze after the session closes.
+ *  Best-effort: any failure (including the timeout) degrades to "no frame", never a failed tile. */
 async function captureFrame(b: SpawnedBrowser): Promise<string | undefined> {
   try {
     const res = await fetch('/api/browser/screenshot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${b.token}` },
+      signal: AbortSignal.timeout(SCREENSHOT_TIMEOUT_MS),
       body: JSON.stringify({ sessionId: b.sessionId }),
     });
     if (!res.ok) return undefined;
@@ -88,6 +121,31 @@ export function useSwarm() {
 
   // Release the fleet if the consumer unmounts mid-run.
   useEffect(() => () => releaseFleet(fleetRef.current), []);
+
+  // ...and if the TAB goes away, which the unmount effect above never sees: closing the tab or
+  // hard-refreshing tears the document down without running React cleanup, so up to 20 sessions
+  // stayed alive for the full 300s session timeout (lib/browserbase.ts), ate the 20-session
+  // concurrency cap, and made the next run fail with an unexplained 500.
+  //
+  // `pagehide` over `beforeunload`: beforeunload is unreliable on mobile Safari and is skipped
+  // entirely when a page enters the back/forward cache.
+  //
+  // This CANNOT misfire on a normal React unmount: the handler is only ever invoked by the
+  // browser at document teardown — a route change unmounts the hook, which removes the listener
+  // (and runs the effect above) without the event ever firing. The one case where pagehide fires
+  // on a page that may come BACK is a bfcache entry (`persisted: true`); we skip that, because
+  // restoring from bfcache resumes the very run whose sessions we'd have killed.
+  //
+  // Over-releasing is safe in the other direction: REQUEST_RELEASE on an already-finished
+  // session is a no-op, so firing for a completed run costs one ignored request.
+  useEffect(() => {
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (e.persisted) return; // bfcache — the page (and its run) can still come back
+      releaseFleetBeacon(fleetRef.current);
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, []);
 
   // Live elapsed timer while the swarm runs.
   useEffect(() => {
