@@ -261,18 +261,23 @@ export function useFriday() {
   const lastSettledRef = useRef(0);
   const lastAnnounceRef = useRef(0);
   const doneAnnouncedRef = useRef(false);
+  // The settleGen these four refs were last armed for. -1 (never a real generation) so the
+  // very first run arms them.
+  const armedGenRef = useRef(-1);
 
   useEffect(() => {
     const tiles = swarm.tiles;
     const connected = voice.status === "connected";
 
-    // Every ref below is RUN-scoped, so it has to be zeroed at the START of a run, not only on
-    // idle. useSwarm.run() goes spawning → running → done and never passes back through idle, so
-    // a second run in the same session (e.g. "now check these three instead") would otherwise
-    // inherit run 1's counters: lastPillSettled stuck at run 1's total means `settled >` never
-    // holds (no progress pills at all), and doneAnnounced stuck true means no "Verified" pill AND
-    // no [status] Swarm finished — on the voice path FRIDAY would silently never report run 2.
-    if (swarm.phase === "idle" || swarm.phase === "spawning") {
+    // Every ref below is scoped to one BURST OF WORK, so it has to be re-armed whenever tiles
+    // go back in flight — which is exactly what useSwarm.settleGen marks. Phase cannot: run()
+    // goes spawning → running → done and never passes back through idle, and a stealth retry
+    // or a voice retarget moves tiles while phase sits at 'done' the whole time. Keying on
+    // phase left doneAnnounced latched from the first completion, so clicking the shield
+    // greyed the tiles out and brought them back with the mission log saying nothing at all —
+    // no pill, and on the voice path FRIDAY never mentioned the retry happened.
+    if (armedGenRef.current !== swarm.settleGen) {
+      armedGenRef.current = swarm.settleGen;
       lastPillSettledRef.current = 0;
       lastSettledRef.current = 0;
       lastAnnounceRef.current = 0;
@@ -291,8 +296,14 @@ export function useFriday() {
     if (tiles.length === 0) return;
 
     const settled = tiles.filter((t) => t.status !== "idle" && t.status !== "working").length;
+    // Work in flight, not phase, decides which branch runs. A stealth retry and a retarget both
+    // drive live browsers while phase reads 'done', so gating the progress branch on
+    // phase === 'running' blacked them out — and worse, gating the completion branch on phase
+    // alone made it fire the instant the retry STARTED, announcing "finished" over three tiles
+    // that had just gone back to work. `settled` is the same count both branches already use.
+    const inFlight = settled < tiles.length;
 
-    if (swarm.phase === "running") {
+    if (inFlight) {
       // First running tick → a "browsers are working" pill (the visible action trace, separate
       // from the spoken narration).
       if (lastPillSettledRef.current === 0 && settled === 0) pushAction(`Running ${tiles.length} browsers`, "run");
@@ -324,6 +335,8 @@ export function useFriday() {
         );
       }
     } else if (swarm.phase === "done" && !doneAnnouncedRef.current) {
+      // Reached only when the grid is fully settled AND the run has completed at least once —
+      // so it covers both a first completion and a retry/retarget re-settling under phase 'done'.
       doneAnnouncedRef.current = true;
       const resolved = tiles.filter((t) => ["done", "active", "inactive"].includes(t.status)).length;
       pushAction(`Verified ${resolved} of ${tiles.length} — compiling report`, "done");
@@ -333,7 +346,7 @@ export function useFriday() {
         );
       }
     }
-  }, [swarm.tiles, swarm.phase, voice.status, voice.voiceState, pushAction]);
+  }, [swarm.tiles, swarm.phase, swarm.settleGen, voice.status, voice.voiceState, pushAction]);
 
   const resetAll = useCallback(() => {
     // Hide the current transcript, then end the voice session so the model's conversation context
