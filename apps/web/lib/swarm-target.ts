@@ -11,7 +11,11 @@ import {
   goalFor,
   mapStatus,
   isBlocked,
+  edgarSearchUrl,
+  edgarGoal,
+  EDGAR_EXTRACT,
 } from "./sos-adapters";
+import { wikiArticleUrl, factGoal, factExtract, FACT_MAX_STEPS, FACT_TIMEOUT_MS } from "./fact-source";
 import type { PlanTarget } from "./schemas";
 
 export interface SwarmTarget {
@@ -29,26 +33,141 @@ export interface SwarmTarget {
   extract: string;
   /** Execution engine. Default "stagehand"; "bb-agent" escalates to a Browserbase Agent run. */
   engine?: "stagehand" | "bb-agent";
+  /** Per-target agent step budget. Absent → the global AGENT_MAX_STEPS. KYB/EDGAR targets set
+   *  this low (the answer is on the landing page; extra steps only let the agent wander off it). */
+  maxSteps?: number;
+  /** Per-target attempt timeout (ms). Absent → the global ATTEMPT_TIMEOUT_MS. Fact lookups bump
+   *  this to catch slow-page outliers (a huge Wikipedia article can take ~55s to settle). */
+  timeoutMs?: number;
+  /** Skip the search-augmented retry: re-searching the open web can't beat a target already
+   *  pinned to ONE authoritative source, so the retry only wastes time. Set on fact targets
+   *  (pinned to Wikipedia). KYB targets get the same skip implicitly — runTarget also bails
+   *  out of the retry whenever `classify` is present, which covers BOTH KYB producers
+   *  (planToTargets and buildKybTargets), so they don't need to set this too. */
+  singlePass?: boolean;
   /** KYB-only classifier (mapStatus). Absent → generic done/blocked/error classification. */
   classify?: (data: unknown) => WorkerStatus;
 }
 
+/** EDGAR answers on the landing page — a tight step budget keeps the agent from navigating
+ *  away before the extract reads it (the cause of slow, wrong `notfound`s). */
+const KYB_MAX_STEPS = 4;
+
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "target";
 
+/** ONE trailing legal-entity suffix, in every shape a planner actually emits: bare ("Inc"),
+ *  dotted ("Inc."), comma'd (", Inc."), and the dotted initialisms ("L.P.", "L.L.C.", "L.L.P.",
+ *  "P.L.C.") — the old alternation handled `l.l.c` but not `l.p`, so "Brookfield Renewable
+ *  Partners L.P." reached EDGAR with its suffix intact. Anchored to the END and required to
+ *  follow whitespace, which is what keeps the guards intact: "Incyte" keeps its "Inc",
+ *  "Sony Corporation of America" keeps its non-trailing "Corporation", and "Ltd Commodities" /
+ *  "LP Building Solutions" keep their LEADING suffix words. */
+const LEGAL_SUFFIX =
+  /[,.\s]*\s(incorporated|inc|corporation|corp|company|co|l\.?l\.?c|llc|l\.?l\.?p|llp|l\.?p|limited|ltd|p\.?l\.?c|plc)\.?$/i;
+
+/** The company name to verify. Planner labels vary ("Tesla", "Tesla — SoS", "Tesla, Inc.",
+ *  "NVIDIA Corporation"): drop any " — portal" suffix, then EVERY trailing legal suffix, so
+ *  EDGAR gets a clean, consistent query (a bare name matches EDGAR's search far more reliably
+ *  than a full legal name with commas). */
+const entityOf = (label: string): string => {
+  const base = label.split(/\s[—–-]\s/)[0].trim() || label.trim();
+  // Leading "The" breaks EDGAR's prefix match ("The Home Depot" -> no results, "Home Depot" -> found).
+  let cleaned = base.replace(/^the\s+/i, "").trim();
+  // LOOP, because one `.replace()` strips ONE suffix and doubled suffixes are common in the
+  // legal names LLMs emit: "Church & Dwight Co., Inc." used to reduce to "Church & Dwight Co.",
+  // which EDGAR answers with "No matching companies". That lands as `notfound` and STAYS there —
+  // runTarget skips the agency retry for any target carrying `classify` (see `singlePass` above),
+  // so the report would tell a viewer an S&P 500 company has no registration record, confidently
+  // and wrongly, on the flagship KYB demo.
+  for (;;) {
+    // Trailing punctuation and ampersands go with it: stripping "Company" off "Deere & Company"
+    // otherwise reaches EDGAR as "Deere &", which only matched by luck.
+    const next = cleaned.replace(LEGAL_SUFFIX, "").replace(/[,&.\s]+$/, "").trim();
+    // Stop at a fixed point — and never let the strip eat the name whole: a company literally
+    // named "Company" must stay "Company", not become "" (the `|| base` below is the last net).
+    if (!next || next === cleaned) break;
+    cleaned = next;
+  }
+  return cleaned || base;
+};
+
+/** The planner's EXPLICIT routing key for a source-pinned target, or null when it didn't give one.
+ *  Blank counts as absent: strict-mode structured output makes `subject` a required field, so a model
+ *  that has nothing to say emits "" as readily as null, and an empty key would build
+ *  `/wiki/` or an EDGAR search for nothing — strictly worse than the label guess it replaced. */
+const subjectOf = (pt: PlanTarget): string | null => pt.subject?.trim() || null;
+
 /** Map planner output (PlanTarget[]) into runnable SwarmTargets, assigning stable ids.
- *  Used by both the /swarm review UI and the verify-plan harness. */
+ *  Used by both the /swarm review UI and the verify-plan harness.
+ *
+ *  KYB override: a target the planner tagged `kind:"kyb"` is a company-registration check. We
+ *  do NOT trust the LLM's portal choice for these (it picks paywalled DE / slow SPAs / CAPTCHA
+ *  sites) — instead every KYB target is routed deterministically to SEC EDGAR with the tuned
+ *  goal + extract + the mapStatus classifier, which resolves fast and reliably (see sos-adapters).
+ *
+ *  Both pinned kinds route off `subject` — the planner's bare entity name — NOT off `label`. `label`
+ *  is display text for the tile and the planner is only softly told to keep it a bare subject, so a
+ *  perfectly reasonable "Airbnb founding year" label used to become /wiki/Airbnb_founding_year (the
+ *  "does not have an article with this exact name" page) on a target that is `singlePass` and never
+ *  retries. A display string was never a safe routing key. `subject` is; `label` stays untouched in
+ *  the output either way, so tiles keep rendering exactly what the planner wrote for humans.
+ *
+ *  The label-derivation survives as the FALLBACK for a null/blank `subject`: the planner is an LLM
+ *  and will sometimes omit the field, and that case must degrade to the old behavior (plus the
+ *  in-attempt recovery `factGoal` teaches), never to an empty key. */
 export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
-  return planTargets.map((pt, i) => ({
-    id: `t${i}-${slug(pt.label)}`,
-    label: pt.label,
-    // strict-mode schema returns null (not undefined) for absent optional fields.
-    startUrl: pt.startUrl ?? undefined,
-    query: pt.query ?? undefined,
-    goal: pt.goal,
-    extract: pt.extract,
-    engine: pt.engine ?? undefined,
-  }));
+  return planTargets.map((pt, i) => {
+    const base = {
+      id: `t${i}-${slug(pt.label)}`,
+      label: pt.label,
+      engine: pt.engine ?? undefined,
+    };
+    if (pt.kind === "kyb") {
+      // entityOf runs on the SUBJECT too, not just the label fallback: a planner asked for "the plain
+      // company name" still emits "Walmart Inc" / "The Kroger Co., Inc.", and EDGAR prefix-matches.
+      const entity = entityOf(subjectOf(pt) ?? pt.label);
+      return {
+        ...base,
+        startUrl: edgarSearchUrl(entity),
+        // NOT a retry fallback — runTarget skips the retry whenever `classify` is set (see the
+        // `singlePass` doc above). It earns its place in the UI: PlanReview renders and edits
+        // `query` per target, and it becomes the live routing hint the moment a reviewer clears
+        // the startUrl field — EDGAR-scoped, so even that path stays off the open web.
+        query: `${entity} SEC EDGAR company filings`,
+        goal: edgarGoal(entity),
+        extract: EDGAR_EXTRACT,
+        maxSteps: KYB_MAX_STEPS,
+        classify: mapStatus,
+      };
+    }
+    if (pt.kind === "fact") {
+      // Route to Wikipedia but KEEP the planner's own extract question (that's the per-target
+      // ask — "founding year?", "population?", "CEO?"); only the source + goal are overridden.
+      // An explicit subject is used VERBATIM (only trimmed): it is already the article title, and
+      // splitting it would truncate real titles that contain a spaced dash ("Mission: Impossible –
+      // Fallout"). Only the label fallback gets the " — portal" strip it always had.
+      const topic = subjectOf(pt) ?? (pt.label.split(/\s[—–-]\s/)[0].trim() || pt.label.trim());
+      return {
+        ...base,
+        startUrl: wikiArticleUrl(topic),
+        query: `${topic} Wikipedia`,
+        goal: factGoal(topic),
+        extract: factExtract(pt.extract),
+        maxSteps: FACT_MAX_STEPS,
+        timeoutMs: FACT_TIMEOUT_MS,
+        singlePass: true, // Wikipedia is the source; re-searching the open web won't beat it
+      };
+    }
+    return {
+      ...base,
+      // strict-mode schema returns null (not undefined) for absent optional fields.
+      startUrl: pt.startUrl ?? undefined,
+      query: pt.query ?? undefined,
+      goal: pt.goal,
+      extract: pt.extract,
+    };
+  });
 }
 
 /** KYB preset: the proven path, no LLM. Builds one target per state from the curated
