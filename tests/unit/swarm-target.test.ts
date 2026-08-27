@@ -49,10 +49,15 @@ describe("planToTargets — KYB routing", () => {
     expect(one({ label: "Tesla", kind: "kyb" }).classify).toBe(mapStatus);
   });
 
-  it("keeps the retry fallback query on EDGAR instead of the open web", () => {
+  it("rewrites the planner's query to an EDGAR-scoped one (the review UI's editable hint)", () => {
+    // NOT a retry fallback — runTarget skips the retry for any target carrying `classify`.
+    // `query` is what PlanReview renders and lets a reviewer edit, and it becomes the live
+    // routing hint if they clear the startUrl, so it has to stay on EDGAR and on the CLEANED
+    // entity rather than keeping whatever the planner guessed.
     const t = one({ label: "Walmart Inc", kind: "kyb", query: "walmart business license" });
     expect(t.query).toContain("Walmart");
     expect(t.query).toContain("EDGAR");
+    expect(t.query).not.toContain("business license");
   });
 
   it("caps the step budget so the agent can't navigate off the answer page", () => {
@@ -85,11 +90,36 @@ describe("planToTargets — entity cleaning for EDGAR (via the company query par
     ["Acme Holdings LLC", "Acme Holdings"],
     ["Barclays PLC", "Barclays"],
     ["Costco Wholesale Corporation — SoS", "Costco Wholesale"], // both rules, in order
+    // DOUBLED suffixes. A single `.replace()` strips only the last one and leaves a fragment
+    // EDGAR answers with "No matching companies" — which a KYB target reports as `notfound`
+    // and never retries (runTarget skips the retry whenever `classify` is set), i.e. the report
+    // claims an S&P 500 company has no registration record. The strip has to run to a fixed point.
+    ["Church & Dwight Co., Inc.", "Church & Dwight"], // was "Church & Dwight Co." -> no match
+    ["The Kroger Co., Inc.", "Kroger"], // leading "The" + a doubled suffix, all three rules
+    // Trailing punctuation/ampersand goes with the suffix, or the query carries a dangling "&".
+    ["Deere & Company", "Deere"], // was "Deere &"
+    ["Procter & Gamble Co.", "Procter & Gamble"],
+    // Dotted initialisms. The old alternation had `l.l.c` but a bare `lp`, so "L.P." survived.
+    ["Brookfield Renewable Partners L.P.", "Brookfield Renewable Partners"],
+    ["Brookfield Renewable Partners L.P", "Brookfield Renewable Partners"],
+    ["Baker & Hostetler L.L.P.", "Baker & Hostetler"],
+    ["Acme Holdings L.L.C.", "Acme Holdings"],
     // Guards: only a TRAILING suffix and a SPACED dash are special. A greedy regex here
     // would mangle real company names.
     ["Coca-Cola", "Coca-Cola"], // unspaced hyphen is part of the name
     ["Sony Corporation of America", "Sony Corporation of America"], // suffix is not trailing
     ["Incyte", "Incyte"], // "Inc" is not a whole trailing word
+    ["Thermo Fisher Scientific", "Thermo Fisher Scientific"], // no suffix at all
+    ["Jack in the Box", "Jack in the Box"], // "the" is stripped only when LEADING
+    ["Ltd Commodities", "Ltd Commodities"], // suffix word, but leading
+    ["LP Building Solutions", "LP Building Solutions"], // ditto
+    ["Estee Lauder Companies", "Estee Lauder Companies"], // "Companies" != "Company"
+    ["Marsh & McLennan Companies", "Marsh & McLennan Companies"], // and the "&" is interior
+    ["AT&T Inc.", "AT&T"], // an interior "&" survives; only a DANGLING one is trimmed
+    ["Amazon.com, Inc.", "Amazon.com"], // interior "." survives
+    // The loop must not eat a name whole: a company literally named "Company" stays "Company".
+    ["Company", "Company"],
+    ["The Company", "Company"],
   ];
 
   it.each(cases)("cleans %j -> %j", (label, company) => {
@@ -141,8 +171,14 @@ describe("planToTargets — fact routing", () => {
     expect(one({ label: "Tokyo", kind: "fact" }).classify).toBeUndefined();
   });
 
-  it("keeps a Wikipedia-scoped query as the URL-discovery fallback", () => {
-    expect(one({ label: "Tokyo", kind: "fact" }).query).toContain("Wikipedia");
+  it("keeps a Wikipedia-scoped query for the review UI (there is no retry to fall back to)", () => {
+    // `singlePass` means runTarget never retries a fact target, and `startUrl` is always set so
+    // the pre-attempt search never fires either — this query is display/edit state in
+    // PlanReview, and it stays scoped to Wikipedia so an edited target does not drift onto the
+    // open web (the slow, unreliable path Wikipedia routing exists to replace).
+    const t = one({ label: "Tokyo", kind: "fact" });
+    expect(t.query).toContain("Wikipedia");
+    expect(t.singlePass).toBe(true); // the reason the query is not a fallback
   });
 });
 

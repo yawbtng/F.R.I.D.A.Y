@@ -56,18 +56,39 @@ const KYB_MAX_STEPS = 4;
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "target";
 
+/** ONE trailing legal-entity suffix, in every shape a planner actually emits: bare ("Inc"),
+ *  dotted ("Inc."), comma'd (", Inc."), and the dotted initialisms ("L.P.", "L.L.C.", "L.L.P.",
+ *  "P.L.C.") — the old alternation handled `l.l.c` but not `l.p`, so "Brookfield Renewable
+ *  Partners L.P." reached EDGAR with its suffix intact. Anchored to the END and required to
+ *  follow whitespace, which is what keeps the guards intact: "Incyte" keeps its "Inc",
+ *  "Sony Corporation of America" keeps its non-trailing "Corporation", and "Ltd Commodities" /
+ *  "LP Building Solutions" keep their LEADING suffix words. */
+const LEGAL_SUFFIX =
+  /[,.\s]*\s(incorporated|inc|corporation|corp|company|co|l\.?l\.?c|llc|l\.?l\.?p|llp|l\.?p|limited|ltd|p\.?l\.?c|plc)\.?$/i;
+
 /** The company name to verify. Planner labels vary ("Tesla", "Tesla — SoS", "Tesla, Inc.",
- *  "NVIDIA Corporation"): drop any " — portal" suffix, then a trailing legal suffix, so EDGAR
- *  gets a clean, consistent query (a bare name matches EDGAR's search far more reliably than a
- *  full legal name with commas). */
+ *  "NVIDIA Corporation"): drop any " — portal" suffix, then EVERY trailing legal suffix, so
+ *  EDGAR gets a clean, consistent query (a bare name matches EDGAR's search far more reliably
+ *  than a full legal name with commas). */
 const entityOf = (label: string): string => {
   const base = label.split(/\s[—–-]\s/)[0].trim() || label.trim();
-  const cleaned = base
-    // Leading "The" breaks EDGAR's prefix match ("The Home Depot" -> no results, "Home Depot" -> found).
-    .replace(/^the\s+/i, "")
-    // Trailing legal suffix likewise ("Walmart Inc" -> no match, "Walmart" -> found).
-    .replace(/,?\s+(inc|incorporated|corp|corporation|co|company|llc|l\.l\.c|ltd|limited|plc|lp|llp)\.?$/i, "")
-    .trim();
+  // Leading "The" breaks EDGAR's prefix match ("The Home Depot" -> no results, "Home Depot" -> found).
+  let cleaned = base.replace(/^the\s+/i, "").trim();
+  // LOOP, because one `.replace()` strips ONE suffix and doubled suffixes are common in the
+  // legal names LLMs emit: "Church & Dwight Co., Inc." used to reduce to "Church & Dwight Co.",
+  // which EDGAR answers with "No matching companies". That lands as `notfound` and STAYS there —
+  // runTarget skips the agency retry for any target carrying `classify` (see `singlePass` above),
+  // so the report would tell a viewer an S&P 500 company has no registration record, confidently
+  // and wrongly, on the flagship KYB demo.
+  for (;;) {
+    // Trailing punctuation and ampersands go with it: stripping "Company" off "Deere & Company"
+    // otherwise reaches EDGAR as "Deere &", which only matched by luck.
+    const next = cleaned.replace(LEGAL_SUFFIX, "").replace(/[,&.\s]+$/, "").trim();
+    // Stop at a fixed point — and never let the strip eat the name whole: a company literally
+    // named "Company" must stay "Company", not become "" (the `|| base` below is the last net).
+    if (!next || next === cleaned) break;
+    cleaned = next;
+  }
   return cleaned || base;
 };
 
@@ -90,7 +111,11 @@ export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
       return {
         ...base,
         startUrl: edgarSearchUrl(entity),
-        query: `${entity} SEC EDGAR company filings`, // retry fallback stays on-topic
+        // NOT a retry fallback — runTarget skips the retry whenever `classify` is set (see the
+        // `singlePass` doc above). It earns its place in the UI: PlanReview renders and edits
+        // `query` per target, and it becomes the live routing hint the moment a reviewer clears
+        // the startUrl field — EDGAR-scoped, so even that path stays off the open web.
+        query: `${entity} SEC EDGAR company filings`,
         goal: edgarGoal(entity),
         extract: EDGAR_EXTRACT,
         maxSteps: KYB_MAX_STEPS,

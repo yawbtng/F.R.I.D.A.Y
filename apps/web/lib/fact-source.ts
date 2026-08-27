@@ -8,9 +8,21 @@
 //
 // Direct article URL (spaces -> underscores). This lands ON the article for the vast majority of
 // subjects and is FAST — live probe hit 4/4 in ~25s this way, whereas Special:Search added a
-// heavier redirect/results page and dropped to 1/3 with 50s+ runs. The rare miss is a common-word
-// subject whose bare title is a disambiguation page (e.g. "Stripe", "Apple"); the goal below tells
-// the agent to click the right entry, and the query fallback re-searches if the article 404s.
+// heavier redirect/results page and dropped to 1/3 with 50s+ runs.
+//
+// A miss has to be recovered INSIDE the one attempt. There is no fallback: fact targets set
+// `singlePass`, which is exactly the flag runTarget checks to skip the search-augmented retry,
+// and `startUrl` is always set here so the pre-attempt search path never fires either. (The
+// `query` planToTargets attaches is display/edit state for the plan-review UI, not a retry.)
+// Two misses are real, so the goal below teaches the agent to recognize and escape BOTH within
+// FACT_MAX_STEPS:
+//   1. A common-word subject whose bare title is a disambiguation page ("Stripe", "Apple").
+//   2. A label that is not a subject at all. The planner's "put the subject in the label"
+//      instruction is soft, so it routinely emits "Airbnb founding year" -> /wiki/Airbnb_founding_year
+//      -> Wikipedia's "does not have an article with this exact name" page. Left unhandled that
+//      burns the whole step budget and settles `notfound` with no recovery. (The durable fix is
+//      upstream — a dedicated subject field on PlanTarget so the article title never has to be
+//      inferred from display text; the goal branch is the in-attempt safety net until then.)
 export const wikiArticleUrl = (topic: string): string =>
   `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.trim().replace(/\s+/g, "_"))}`;
 
@@ -23,6 +35,10 @@ export const factGoal = (topic: string): string =>
   `or a search-results page — then CLICK the single link that best matches what the question is about ` +
   `(for a founding year / CEO / headquarters question, that's the company or organization named ` +
   `"${topic}"; for a population question, the city/place). Land on that article, then stop.\n` +
+  `• A NO-ARTICLE page (it says Wikipedia "does not have an article with this exact name", or shows ` +
+  `a red create-this-page link) — the title was built from a phrase, not a subject. Do NOT give up: ` +
+  `type the SUBJECT of the question into Wikipedia's search box (for "${topic}", that is the entity ` +
+  `the question is about, without the question words), search, and open the best-matching article.\n` +
   `Never navigate away once you can see the requested value.`;
 
 // Enough to confirm load + click through ONE disambiguation page ("Stripe", "Notion", "Apple"
@@ -30,10 +46,19 @@ export const factGoal = (topic: string): string =>
 // article. Unambiguous subjects settle in 1-2 steps; ambiguous ones use the extra budget.
 export const FACT_MAX_STEPS = 5;
 
-// Big Wikipedia articles occasionally take ~55s to load + settle + extract under parallel load,
-// kissing the default 55s cap. Facts are SINGLE-PASS (no retry), so nudging the budget just under
-// the route's 60s maxDuration catches those near-miss outliers while staying prod-safe. (A true
-// infra hang exceeds any sane budget and errors cleanly — that's honest, not tunable.)
+// Per-attempt wall clock for a fact lookup, overriding runTarget's default 55s. It bounds the
+// WHOLE attempt — the /api/browser/agent call plus the /api/browser/extract call — and what it is
+// measured against is the 300s Browserbase session lifetime (lib/browserbase.ts), NOT any route's
+// 60s ceiling: those two routes are separate function invocations that each get their own
+// `maxDuration = 60`, so an attempt was never capped at 60 in the first place.
+//
+// 58s over 55s buys the 3s that big Wikipedia articles occasionally need to load + settle +
+// extract under parallel load. Facts are SINGLE-PASS (no retry), so this one attempt is all they
+// get — hence the nudge rather than a trim. runTarget SPLITS this budget rather than sharing it
+// (agent share = 58s minus the extract reserve, extract gets the remainder with a floor), which
+// does not change the number: the ~55s observation was load + settle + extract, i.e. the whole
+// attempt, and the split only guarantees the extract is not squeezed to nothing by a slow agent.
+// (A true infra hang exceeds any sane budget and errors cleanly — that's honest, not tunable.)
 export const FACT_TIMEOUT_MS = 58_000;
 
 /** Wrap the planner's per-target question with a crisp output instruction so extraction returns a
