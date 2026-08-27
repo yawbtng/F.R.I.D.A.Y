@@ -27,6 +27,27 @@ export interface ReportModel {
 /** Settled, useful answers (as opposed to blocked / notfound / error which need work). */
 export const RESOLVED_STATUSES = new Set(["done", "active", "inactive"]);
 
+/** The human-facing outcome for one row: the extracted answer for a resolved target, or a
+ *  plain-English reason for a failed one. Error tiles now carry the raw failure string
+ *  (session lost, timeout, bot-wall); a reader wants "why", not a stack trace. Shared by the
+ *  report modal and the Markdown/PDF exporters so all three read identically. */
+export function describeOutcome(it: Pick<ReportItem, "status" | "result">): string {
+  const raw = (it.result ?? "").trim();
+  if (RESOLVED_STATUSES.has(it.status)) return raw;
+  if (it.status === "blocked")
+    return raw.replace(/^blocked:\s*/i, "") || "The site blocked automated access (anti-bot wall).";
+  if (it.status === "notfound") return raw || "No matching record was found in this registry.";
+  if (it.status === "error") {
+    if (/session (lost|is no longer|ended)|awaitActivePage|CDP transport|socket-close/i.test(raw))
+      return "The browser session ended before the check finished.";
+    if (/tim(ed )?out|timeout/i.test(raw)) return "The site was too slow to respond in time.";
+    if (/captcha|turnstile|bot|are you human|challenge/i.test(raw))
+      return "The site blocked automated access (anti-bot wall).";
+    return raw || "The check failed before returning a result.";
+  }
+  return raw;
+}
+
 const host = (url?: string): string => {
   if (!url) return "";
   try {
@@ -102,7 +123,7 @@ export function reportToMarkdown(m: ReportModel): string {
   for (const it of m.items) {
     const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
     const src = it.url ? `[${host(it.url)}](${it.url})` : "—";
-    out.push(`| ${cell(it.label)} | ${it.status} | ${cell(it.result || "—")} | ${src} |`);
+    out.push(`| ${cell(it.label)} | ${it.status} | ${cell(describeOutcome(it) || "—")} | ${src} |`);
   }
   out.push("");
   if (m.narrative?.notes?.length) {
@@ -135,7 +156,7 @@ export function reportToPrintableHtml(m: ReportModel): string {
       <td class="thumb">${it.screenshotUrl ? `<img src="${esc(it.screenshotUrl)}" alt="">` : ""}</td>
       <td><div class="label">${esc(it.label)}</div>${it.url ? `<a href="${esc(it.url)}">${esc(host(it.url))}</a>` : ""}</td>
       <td><span class="badge" style="background:${BADGE[it.status] ?? "#6b7280"}">${esc(it.status)}</span></td>
-      <td class="answer">${esc(it.result || "—")}</td>
+      <td class="answer">${esc(describeOutcome(it) || "—")}</td>
     </tr>`,
     )
     .join("");

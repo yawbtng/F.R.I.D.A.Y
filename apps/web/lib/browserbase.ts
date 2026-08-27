@@ -24,20 +24,22 @@ export async function createBrowserSession(opts?: { stealth?: boolean }): Promis
     // Route through Browserbase's Model Gateway: a plain provider/model slug billed via
     // the Browserbase API key (the top-level apiKey above). No provider key or baseURL.
     model: process.env.STAGEHAND_MODEL || "openai/gpt-4.1-mini",
-    // Stealth pass: auto CAPTCHA-solving, set at session creation (reattaches
-    // preserve it). Residential proxies are now OPT-IN via BB_PROXIES=1 —
-    // proxy bandwidth is metered separately ($12/GB) and swarm runs blew 640%
-    // of the plan allowance (2026-07-05). Sites that hard-require a
-    // residential IP (some SoS walls) need BB_PROXIES=1 for that run only.
-    ...(opts?.stealth
-      ? {
-          browserbaseSessionCreateParams: {
-            projectId: process.env.BROWSERBASE_PROJECT_ID!,
-            ...(process.env.BB_PROXIES === "1" ? { proxies: true } : {}),
-            browserSettings: { solveCaptchas: true },
-          },
-        }
-      : {}),
+    // EVERY session gets an explicit timeout + CAPTCHA solving — not just stealth ones.
+    // The project's defaultTimeout is ~60s, but a single agent run can take 45-50s, so a
+    // default-timeout session would END mid-run (COMPLETED + CDP socket 1006), nulling the
+    // page and crashing the next Stagehand call with `awaitActivePage` on null. 300s gives
+    // every target headroom to finish and still frees the session fast on release.
+    //
+    // Residential proxies stay OPT-IN — proxy bandwidth is metered separately ($12/GB) and
+    // swarm runs blew 640% of the plan allowance (2026-07-05). They turn on for a stealth
+    // retry (the "try harder" escalation on a target that a datacenter IP couldn't read) or
+    // globally via BB_PROXIES=1. First-pass runs stay proxy-free unless the env flag is set.
+    browserbaseSessionCreateParams: {
+      projectId: process.env.BROWSERBASE_PROJECT_ID!,
+      timeout: Number(process.env.BB_SESSION_TIMEOUT ?? 300),
+      browserSettings: { solveCaptchas: true },
+      ...(opts?.stealth || process.env.BB_PROXIES === "1" ? { proxies: true } : {}),
+    },
   });
   await stagehand.init();
   const sessionId = stagehand.browserbaseSessionID!;

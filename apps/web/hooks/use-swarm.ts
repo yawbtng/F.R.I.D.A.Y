@@ -157,8 +157,12 @@ export function useSwarm() {
               status = r.status;
               result = r.result;
               if (r.url) guarded({ url: r.url });
-            } catch {
+            } catch (e) {
+              // Keep the reason — an errored tile with an empty result gives the report nothing
+              // to explain (it just reads "N errors"). The message ("Browser session lost",
+              // "act() timed out", etc.) is what makes the report say WHY a target failed.
               status = 'error';
+              result = e instanceof Error ? e.message : 'run failed';
             }
             // Freeze the final frame, then release the session so it stops billing.
             const screenshotUrl = await captureFrame(browsers[i]);
@@ -224,8 +228,9 @@ export function useSwarm() {
             status = r.status;
             result = r.result;
             if (r.url) guarded({ url: r.url });
-          } catch {
+          } catch (e) {
             status = 'error';
+            result = e instanceof Error ? e.message : 'run failed'; // preserve the reason (see run())
           }
           const screenshotUrl = await captureFrame(browsers[k]);
           guarded({ status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
