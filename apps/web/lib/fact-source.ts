@@ -17,12 +17,16 @@
 // Two misses are real, so the goal below teaches the agent to recognize and escape BOTH within
 // FACT_MAX_STEPS:
 //   1. A common-word subject whose bare title is a disambiguation page ("Stripe", "Apple").
-//   2. A label that is not a subject at all. The planner's "put the subject in the label"
-//      instruction is soft, so it routinely emits "Airbnb founding year" -> /wiki/Airbnb_founding_year
-//      -> Wikipedia's "does not have an article with this exact name" page. Left unhandled that
-//      burns the whole step budget and settles `notfound` with no recovery. (The durable fix is
-//      upstream — a dedicated subject field on PlanTarget so the article title never has to be
-//      inferred from display text; the goal branch is the in-attempt safety net until then.)
+//   2. A title that is not a subject at all -> Wikipedia's "does not have an article with this exact
+//      name" page. Left unhandled that burns the whole step budget and settles `notfound` with no
+//      recovery. The durable fix shipped upstream: PlanTarget carries a dedicated `subject` field and
+//      planToTargets routes off THAT, so the article title is normally the planner's explicit bare
+//      entity and never inferred from display text. Inference from `label` (strip a " — portal"
+//      suffix and hope the rest is a subject) is now only the FALLBACK for a null/blank `subject` —
+//      which an LLM still hands us — and that fallback is exactly where "Airbnb founding year" ->
+//      /wiki/Airbnb_founding_year can still happen. A wrong-but-present subject lands here too. So the
+//      goal branch below stays: it is the in-attempt safety net for both, and facts are `singlePass`,
+//      so this one attempt is the only chance to recover.
 export const wikiArticleUrl = (topic: string): string =>
   `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.trim().replace(/\s+/g, "_"))}`;
 

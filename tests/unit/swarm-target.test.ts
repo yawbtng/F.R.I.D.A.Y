@@ -1,13 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { planToTargets, type SwarmTarget } from "../../apps/web/lib/swarm-target";
 import { mapStatus, edgarGoal, EDGAR_EXTRACT } from "../../apps/web/lib/sos-adapters";
-import { FACT_MAX_STEPS, FACT_TIMEOUT_MS } from "../../apps/web/lib/fact-source";
+import { FACT_MAX_STEPS, FACT_TIMEOUT_MS, factGoal } from "../../apps/web/lib/fact-source";
 import type { PlanTarget } from "../../apps/web/lib/schemas";
 
 // PlanTarget fields are nullable-not-optional (strict-mode structured output), so build one
 // from a partial instead of hand-writing the nulls in every case.
 const pt = (o: Partial<PlanTarget> & { label: string }): PlanTarget => ({
   label: o.label,
+  subject: o.subject ?? null,
   startUrl: o.startUrl ?? null,
   query: o.query ?? null,
   goal: o.goal ?? "planner goal",
@@ -71,6 +72,44 @@ describe("planToTargets — KYB routing", () => {
   it("preserves the planner's engine choice", () => {
     expect(one({ label: "Tesla", kind: "kyb", engine: "bb-agent" }).engine).toBe("bb-agent");
     expect(one({ label: "Tesla", kind: "kyb" }).engine).toBeUndefined();
+  });
+
+  it("routes off `subject`, not the display label", () => {
+    // The whole point of the field: label is free to be a human-readable phrase, and EDGAR must
+    // still receive the bare company name rather than whatever the tile happens to say.
+    const t = one({ label: "Tesla — is it a registered business?", subject: "Tesla", kind: "kyb" });
+    expect(edgarCompany(t)).toBe("Tesla");
+    expect(t.goal).toBe(edgarGoal("Tesla"));
+  });
+
+  it("still runs entityOf on the subject (planners emit legal names there too)", () => {
+    // "Put the plain company name in subject" is a soft instruction like every other one, so the
+    // suffix strip has to guard the subject path, not just the label fallback.
+    expect(edgarCompany(one({ label: "Walmart", subject: "Walmart Inc", kind: "kyb" }))).toBe(
+      "Walmart",
+    );
+    expect(
+      edgarCompany(one({ label: "Kroger", subject: "The Kroger Co., Inc.", kind: "kyb" })),
+    ).toBe("Kroger");
+  });
+
+  it("falls back to label-derivation when subject is null or blank", () => {
+    // An LLM will omit the field. That must degrade to the pre-subject behavior — never to an
+    // empty `company=` param, which is a confident, wrong `notfound` on the flagship demo.
+    expect(edgarCompany(one({ label: "The Home Depot, Inc.", subject: null, kind: "kyb" }))).toBe(
+      "Home Depot",
+    );
+    // Strict mode makes `subject` required, so a model with nothing to say emits "" as readily
+    // as null; blank has to take the same fallback.
+    expect(edgarCompany(one({ label: "Tesla — SoS", subject: "   ", kind: "kyb" }))).toBe("Tesla");
+  });
+
+  it("leaves the label untouched no matter which key routed it", () => {
+    // `subject` is routing state only; the tile keeps rendering what the planner wrote for humans.
+    expect(one({ label: "Tesla, Inc. — registration", subject: "Tesla", kind: "kyb" }).label).toBe(
+      "Tesla, Inc. — registration",
+    );
+    expect(one({ label: "Tesla, Inc.", subject: null, kind: "kyb" }).label).toBe("Tesla, Inc.");
   });
 });
 
@@ -171,6 +210,42 @@ describe("planToTargets — fact routing", () => {
     expect(one({ label: "Tokyo", kind: "fact" }).classify).toBeUndefined();
   });
 
+  it("routes off `subject`, so a question-shaped label can't build the article title", () => {
+    // The bug this field exists for: "Airbnb founding year" -> /wiki/Airbnb_founding_year, which is
+    // Wikipedia's "does not have an article with this exact name" page, on a target that is
+    // singlePass and never retries. With a subject the title is the planner's explicit entity.
+    const t = one({ label: "Airbnb — founding year", subject: "Airbnb", kind: "fact" });
+    expect(t.startUrl).toBe("https://en.wikipedia.org/wiki/Airbnb");
+    expect(t.startUrl).not.toContain("founding");
+    expect(t.goal).toBe(factGoal("Airbnb"));
+    expect(t.query).toBe("Airbnb Wikipedia");
+  });
+
+  it("uses the subject verbatim, without the label's portal-suffix strip", () => {
+    // An explicit subject is already the article title; splitting it on a spaced dash would
+    // truncate real titles. (The strip belongs to the label fallback, where it guesses.)
+    expect(one({ label: "the 2018 film", subject: "Mission: Impossible – Fallout", kind: "fact" })
+      .startUrl).toBe("https://en.wikipedia.org/wiki/Mission%3A_Impossible_%E2%80%93_Fallout");
+  });
+
+  it("falls back to label-derivation when subject is null or blank", () => {
+    // Degrade to yesterday's behavior, not to /wiki/ with an empty title.
+    expect(one({ label: "New York City — population", subject: null, kind: "fact" }).startUrl).toBe(
+      "https://en.wikipedia.org/wiki/New_York_City",
+    );
+    expect(one({ label: "Tokyo", subject: "  ", kind: "fact" }).startUrl).toBe(
+      "https://en.wikipedia.org/wiki/Tokyo",
+    );
+  });
+
+  it("leaves the label untouched no matter which key routed it", () => {
+    const t = one({ label: "Airbnb — founding year", subject: "Airbnb", kind: "fact" });
+    expect(t.label).toBe("Airbnb — founding year");
+    expect(one({ label: "Tokyo — population", subject: null, kind: "fact" }).label).toBe(
+      "Tokyo — population",
+    );
+  });
+
   it("keeps a Wikipedia-scoped query for the review UI (there is no retry to fall back to)", () => {
     // `singlePass` means runTarget never retries a fact target, and `startUrl` is always set so
     // the pre-attempt search never fires either — this query is display/edit state in
@@ -214,6 +289,14 @@ describe("planToTargets — general passthrough", () => {
     expect(t.timeoutMs).toBeUndefined();
     expect(t.startUrl).not.toContain("sec.gov");
     expect(t.startUrl).not.toContain("wikipedia.org");
+  });
+
+  it("ignores `subject` on general targets (nothing is pinned, so there is nothing to look up by)", () => {
+    // A planner that fills subject in anyway must not perturb the passthrough path.
+    const t = one({ ...planned, subject: "Best Buy", kind: "general" });
+    expect(t).toEqual(one({ ...planned, subject: null, kind: "general" }));
+    expect(t.startUrl).toBe(planned.startUrl);
+    expect(t.label).toBe(planned.label);
   });
 
   it("normalizes strict-mode nulls to undefined", () => {

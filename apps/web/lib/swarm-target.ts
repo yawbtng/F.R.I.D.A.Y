@@ -92,13 +92,30 @@ const entityOf = (label: string): string => {
   return cleaned || base;
 };
 
+/** The planner's EXPLICIT routing key for a source-pinned target, or null when it didn't give one.
+ *  Blank counts as absent: strict-mode structured output makes `subject` a required field, so a model
+ *  that has nothing to say emits "" as readily as null, and an empty key would build
+ *  `/wiki/` or an EDGAR search for nothing — strictly worse than the label guess it replaced. */
+const subjectOf = (pt: PlanTarget): string | null => pt.subject?.trim() || null;
+
 /** Map planner output (PlanTarget[]) into runnable SwarmTargets, assigning stable ids.
  *  Used by both the /swarm review UI and the verify-plan harness.
  *
  *  KYB override: a target the planner tagged `kind:"kyb"` is a company-registration check. We
  *  do NOT trust the LLM's portal choice for these (it picks paywalled DE / slow SPAs / CAPTCHA
  *  sites) — instead every KYB target is routed deterministically to SEC EDGAR with the tuned
- *  goal + extract + the mapStatus classifier, which resolves fast and reliably (see sos-adapters). */
+ *  goal + extract + the mapStatus classifier, which resolves fast and reliably (see sos-adapters).
+ *
+ *  Both pinned kinds route off `subject` — the planner's bare entity name — NOT off `label`. `label`
+ *  is display text for the tile and the planner is only softly told to keep it a bare subject, so a
+ *  perfectly reasonable "Airbnb founding year" label used to become /wiki/Airbnb_founding_year (the
+ *  "does not have an article with this exact name" page) on a target that is `singlePass` and never
+ *  retries. A display string was never a safe routing key. `subject` is; `label` stays untouched in
+ *  the output either way, so tiles keep rendering exactly what the planner wrote for humans.
+ *
+ *  The label-derivation survives as the FALLBACK for a null/blank `subject`: the planner is an LLM
+ *  and will sometimes omit the field, and that case must degrade to the old behavior (plus the
+ *  in-attempt recovery `factGoal` teaches), never to an empty key. */
 export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
   return planTargets.map((pt, i) => {
     const base = {
@@ -107,7 +124,9 @@ export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
       engine: pt.engine ?? undefined,
     };
     if (pt.kind === "kyb") {
-      const entity = entityOf(pt.label);
+      // entityOf runs on the SUBJECT too, not just the label fallback: a planner asked for "the plain
+      // company name" still emits "Walmart Inc" / "The Kroger Co., Inc.", and EDGAR prefix-matches.
+      const entity = entityOf(subjectOf(pt) ?? pt.label);
       return {
         ...base,
         startUrl: edgarSearchUrl(entity),
@@ -125,7 +144,10 @@ export function planToTargets(planTargets: PlanTarget[]): SwarmTarget[] {
     if (pt.kind === "fact") {
       // Route to Wikipedia but KEEP the planner's own extract question (that's the per-target
       // ask — "founding year?", "population?", "CEO?"); only the source + goal are overridden.
-      const topic = pt.label.split(/\s[—–-]\s/)[0].trim() || pt.label.trim();
+      // An explicit subject is used VERBATIM (only trimmed): it is already the article title, and
+      // splitting it would truncate real titles that contain a spaced dash ("Mission: Impossible –
+      // Fallout"). Only the label fallback gets the " — portal" strip it always had.
+      const topic = subjectOf(pt) ?? (pt.label.split(/\s[—–-]\s/)[0].trim() || pt.label.trim());
       return {
         ...base,
         startUrl: wikiArticleUrl(topic),

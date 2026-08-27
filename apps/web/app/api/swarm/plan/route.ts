@@ -37,6 +37,10 @@ query, opens another result, and tries again — so write a query that would sur
 
 For each target provide:
 - label: a short human-readable name for the tile (e.g. "Acme Corp — CA registry", "Best Buy — iPhone 16 Pro").
+- subject: the bare entity the pinned source is looked up by. REQUIRED for kind "kyb" and "fact",
+  null for "general". For "fact" it is the Wikipedia ARTICLE SUBJECT ("Airbnb", "Tokyo", "Notion") —
+  never the question and never a phrase like "Airbnb founding year". For "kyb" it is the plain
+  company name ("Tesla", "Costco"). label is display text and may still read "Airbnb — founding year".
 - startUrl: the exact entry URL when you are confident of it (a real product/record page or the
   site's search). Prefer this. If unsure, leave it null and rely on query.
 - query: ALWAYS provide a strong web search query that would find the exact answer (e.g.
@@ -55,13 +59,13 @@ For each target provide:
   needs full autonomous multi-step reasoning across an unknown site.
 - kind: routing hint. Set one of:
     "kyb"  — verifying whether a COMPANY is a real / registered / active business. Put the plain
-             company name in label; the system routes to SEC EDGAR automatically (don't pick a URL).
+             company name in subject; the system routes to SEC EDGAR automatically (don't pick a URL).
     "fact" — a FACTUAL lookup about a specific entity, place, person, product, or work (e.g. founding
              year, CEO, headquarters, population, employee count, release date, director). Put the
-             subject in label (e.g. "Airbnb", "Tokyo", "Notion") and the precise question in extract;
-             the system routes to Wikipedia automatically, so DON'T pick a URL for these.
+             article subject in subject (e.g. "Airbnb", "Tokyo", "Notion") and the precise question in
+             extract; the system routes to Wikipedia automatically, so DON'T pick a URL for these.
     "general" — anything else (prices, live status, availability, specs on a specific site). Provide a
-             real startUrl/query as usual.
+             real startUrl/query as usual, and set subject to null.
   Prefer "fact" for stable facts about well-known subjects (Wikipedia is fast + reliable); use
   "general" only when the answer is inherently NOT on Wikipedia (current prices, stock quotes, live
   inventory, retailer-specific data).
@@ -69,7 +73,7 @@ For each target provide:
 Rules:
 - READ-ONLY only. Never plan logins, purchases, form submissions that change state, or paid actions.
 - Flagship pattern — business Verification/KYB: given company names, create ONE target per company with
-  kind:"kyb" and the plain company name as the label (e.g. "Tesla", "Costco"). Leave startUrl null; the
+  kind:"kyb" and the plain company name as the subject (e.g. "Tesla", "Costco"). Leave startUrl null; the
   system supplies the registry. Ask whether the company is a registered/active business.
 - Keep the plan tight: at most ${MAX_TARGETS} targets. Split naturally-parallel work (many
   companies / many retailers / many portals) into one target each.
@@ -77,7 +81,7 @@ Rules:
 
 // Second pass. The model is an adversarial reviewer of the DRAFT plan for THIS task: it hunts
 // for weak targets and rewrites them, then reports what it changed. Same target contract as the
-// draft (label/startUrl/query/goal/extract/engine), so its output drops straight into the swarm.
+// draft (label/subject/startUrl/query/goal/extract/engine), so its output drops straight into the swarm.
 const CRITIC = `You are F.R.I.D.A.Y.'s adversarial plan reviewer. You are handed a DRAFT plan (a
 title + a list of targets) produced for the user's task. Assume the draft is flawed. Your job is to
 tear it apart and return a TIGHTER plan that is more likely to return the exact right answers.
@@ -92,11 +96,13 @@ For every target, interrogate it and fix it:
 - query: is it a strong web search that would surface the exact answer on its own? Rewrite weak
   queries. Every target MUST end with a non-empty query (it is also the automatic retry fallback).
 - extract: one precise question with the output format spelled out.
-- kind: preserve each target's kind. "kyb" -> SEC EDGAR and "fact" -> Wikipedia are routed by the
-  system, so DON'T pick URLs for those; just ensure the label is a clean subject name and (for "fact")
-  the extract is a precise question. Prefer "fact" over "general" for stable facts about well-known
-  subjects (founding year, CEO, HQ, population, release date). Only flip kind if the draft clearly
-  mislabeled a target (e.g. a live price marked "fact").
+- kind + subject: preserve each target's kind. "kyb" -> SEC EDGAR and "fact" -> Wikipedia are routed
+  by the system off SUBJECT, not off label, so DON'T pick URLs for those — instead make subject a bare
+  entity name ("Tesla", "Airbnb", "Tokyo"), never a question or a phrase, filling it in if the draft
+  left it null; subject must be null for "general". label stays display text ("Airbnb — founding year"
+  is fine). For "fact" also ensure the extract is a precise question. Prefer "fact" over "general" for
+  stable facts about well-known subjects (founding year, CEO, HQ, population, release date). Only flip
+  kind if the draft clearly mislabeled a target (e.g. a live price marked "fact").
 
 Then fix the plan as a whole:
 - Remove redundant or duplicate targets (same site + same goal).
