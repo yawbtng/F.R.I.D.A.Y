@@ -12,6 +12,16 @@ import type { PlanTarget } from "@/lib/schemas";
 import { applyPlanOps, planSummary, reportSummary, type PlanOp } from "@/lib/friday-tools";
 import { buildFridayInstructions } from "@/lib/friday-persona";
 
+/** A streamed agent action shown as a pill in the mission log (planning, running browsers,
+ *  checking results, updates) — the visible trace of what the swarm is DOING, distinct from
+ *  the spoken conversation. Derived from swarm state so it's exact, not parsed from prose. */
+export interface ActionEvent {
+  id: string;
+  ts: number;
+  label: string;
+  tone: "plan" | "run" | "check" | "done";
+}
+
 export function useFriday() {
   const swarm = useSwarm();
   const [plan, setPlan] = useState<SwarmTarget[]>([]);
@@ -20,6 +30,17 @@ export function useFriday() {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   // Agent-authored (or button-generated) diagram for the report. Both paths land here.
   const [diagram, setDiagram] = useState<{ title: string; kind: string; mermaid: string } | null>(null);
+
+  // Streamed action pills for the mission log (planning / running / checking / done).
+  const [actions, setActions] = useState<ActionEvent[]>([]);
+  const actionSeq = useRef(0);
+  const pushAction = useCallback((label: string, tone: ActionEvent["tone"]) => {
+    setActions((prev) => {
+      // Dedupe consecutive identical labels (the progress effect re-fires on every tile change).
+      if (prev.length && prev[prev.length - 1].label === label) return prev;
+      return [...prev, { id: `a${actionSeq.current++}`, ts: Date.now(), label, tone }];
+    });
+  }, []);
 
   // Refs so the (stable) dispatch always reads current state without re-subscribing the
   // realtime session on every render.
@@ -33,6 +54,7 @@ export function useFriday() {
 
   // Shared planning path — used by both the planTask voice tool and the manual text box (DRY).
   const planFromTask = useCallback(async (task: string) => {
+    pushAction("Planning the workflow", "plan");
     const res = await fetch("/api/swarm/plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -46,7 +68,7 @@ export function useFriday() {
     setPlanTitle(title);
     setPlanNotes(Array.isArray(data.planNotes) ? (data.planNotes as string[]) : []);
     return { title, targets };
-  }, []);
+  }, [pushAction]);
 
   const dispatch = useCallback(async (toolName: string, args: unknown) => {
     const s = swarmRef.current;
@@ -197,25 +219,38 @@ export function useFriday() {
   const hiddenMsgIds = useRef<Set<string>>(new Set());
   const visibleMessages = voice.messages.filter((m) => !hiddenMsgIds.current.has(m.id));
 
-  // M3 progress bridge: narrate the run as tiles come back. Coalesced (~every 6s, only on real
-  // progress) and turn-aware (never while the user is speaking) so it doesn't spam or talk over
-  // them. Injects short [status] notes the persona knows to narrate. The swarm and voice sessions
-  // share this browser, so no server polling is needed — this reads live state directly.
+  // M3 progress bridge: two channels off ONE read of swarm state — action pills (always) and
+  // spoken [status] notes (only on a live realtime session). Both are derived from swarm.phase /
+  // swarm.tiles, which the voice and text paths populate identically, so the effect itself must
+  // NOT be gated on voice.status: a text-path user still needs the full visible action trace.
+  // Only the sendTextMessage calls are gated — pushing into a disconnected session is a no-op at
+  // best and an error at worst. The swarm and voice sessions share this browser, so no server
+  // polling is needed — this reads live state directly.
   // NOTE: the exact conversational feel (interruption, cadence) needs live tuning with a mic.
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
+  // Two cadences, two refs. The pill cadence advances on real progress alone; the voice cadence
+  // additionally waits out the 6s/turn-taking guards. Sharing one ref would let a suppressed
+  // announcement (user mid-sentence, or simply no voice session) swallow the pill too — which is
+  // exactly the text-path blackout this split fixes.
+  const lastPillSettledRef = useRef(0);
   const lastSettledRef = useRef(0);
   const lastAnnounceRef = useRef(0);
   const doneAnnouncedRef = useRef(false);
 
   useEffect(() => {
-    if (voice.status !== "connected") return;
     const tiles = swarm.tiles;
+    const connected = voice.status === "connected";
 
-    if (swarm.phase === "idle" || swarm.phase === "spawning") {
+    if (swarm.phase === "idle") {
+      lastPillSettledRef.current = 0;
       lastSettledRef.current = 0;
       lastAnnounceRef.current = 0;
       doneAnnouncedRef.current = false;
+      return;
+    }
+    if (swarm.phase === "spawning") {
+      pushAction(`Spawning ${tiles.length || swarm.tiles.length || ""} cloud browsers`.trim(), "run");
       return;
     }
     if (tiles.length === 0) return;
@@ -223,11 +258,27 @@ export function useFriday() {
     const settled = tiles.filter((t) => t.status !== "idle" && t.status !== "working").length;
 
     if (swarm.phase === "running") {
+      // First running tick → a "browsers are working" pill (the visible action trace, separate
+      // from the spoken narration).
+      if (lastPillSettledRef.current === 0 && settled === 0) pushAction(`Running ${tiles.length} browsers`, "run");
+
+      // Pill cadence: one "checked X of N" per real advance, no clock and no turn-taking gate.
+      // Progress is the only sensible coalescer for a visual stream — the effect re-fires on every
+      // tile mutation (status → result → screenshot), so without it we'd emit duplicates, and with
+      // a time gate we'd silently drop steps the user can see happening in the tiles.
+      if (settled > lastPillSettledRef.current) {
+        lastPillSettledRef.current = settled;
+        pushAction(`Checked ${settled} of ${tiles.length}`, "check");
+      }
+
+      // Voice cadence: progress AND ~6s apart AND the user isn't mid-sentence. Talking over
+      // someone is far worse than a skipped update, so these stay strict — and they stay here,
+      // where they can't reach the pills.
       const now = Date.now();
       const progressed = settled > lastSettledRef.current;
       const enoughTimePassed = now - lastAnnounceRef.current > 6000;
       const userQuiet = voice.voiceState !== "listening";
-      if (progressed && enoughTimePassed && userQuiet) {
+      if (connected && progressed && enoughTimePassed && userQuiet) {
         lastSettledRef.current = settled;
         lastAnnounceRef.current = now;
         const blocked = tiles.filter((t) => t.status === "blocked").map((t) => t.label);
@@ -240,11 +291,14 @@ export function useFriday() {
     } else if (swarm.phase === "done" && !doneAnnouncedRef.current) {
       doneAnnouncedRef.current = true;
       const resolved = tiles.filter((t) => ["done", "active", "inactive"].includes(t.status)).length;
-      voiceRef.current.sendTextMessage(
-        `[status] Swarm finished: ${resolved} of ${tiles.length} resolved. Summarize the findings for the user.`,
-      );
+      pushAction(`Verified ${resolved} of ${tiles.length} — compiling report`, "done");
+      if (connected) {
+        voiceRef.current.sendTextMessage(
+          `[status] Swarm finished: ${resolved} of ${tiles.length} resolved. Summarize the findings for the user.`,
+        );
+      }
     }
-  }, [swarm.tiles, swarm.phase, voice.status, voice.voiceState]);
+  }, [swarm.tiles, swarm.phase, voice.status, voice.voiceState, pushAction]);
 
   const resetAll = useCallback(() => {
     // Hide the current transcript, then end the voice session so the model's conversation context
@@ -257,6 +311,7 @@ export function useFriday() {
     setPlanNotes([]);
     setFocusedId(null);
     setDiagram(null);
+    setActions([]);
   }, []);
 
   return {
@@ -273,6 +328,7 @@ export function useFriday() {
     setDiagram,
     visualize,
     messages: visibleMessages,
+    actions,
     resetAll,
   };
 }

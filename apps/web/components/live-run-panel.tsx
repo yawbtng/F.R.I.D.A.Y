@@ -1,13 +1,17 @@
 'use client';
 
-// The live Mission Log for the Phase B swarm. Unlike the Convex-backed MissionLog (which reads a
-// saved session), this renders the CURRENT run straight from in-memory state: the voice
-// conversation as it happens, plus a live progress header. It's client-only — persistence
-// (save-to-Sessions + Convex) is a follow-up; this just makes the panel alive during a run.
+// The live Mission Log for the Phase B swarm. Renders the CURRENT run straight from in-memory
+// state: the voice conversation as it happens, the streamed action pills (planning / running /
+// checking / done), plus a live progress header. Client-only — persistence is the sidebar's job.
+//
+// Ordering: the realtime API finalizes the user's transcript AFTER the assistant starts replying,
+// so a naive render flashes FRIDAY's answer above the user's words. We keep the user's turn slot
+// (with a pending "…") even before its text lands, so your words always sit above the reply.
 
 import { useEffect, useRef } from 'react';
 import type { UIMessage } from 'ai';
 import type { Tile } from './swarm-grid';
+import type { ActionEvent } from '@/hooks/use-friday';
 
 /** Flatten a v7 UIMessage to plain text. Assistant turns carry `type:'text'` parts; the user's
  *  SPOKEN turns carry the Whisper transcript on a different part shape (e.g. `transcript`/`audio`),
@@ -31,13 +35,40 @@ function textOf(m: UIMessage): string {
 const SETTLED = ['active', 'inactive', 'notfound', 'done'];
 
 const EXAMPLES = [
-  'Verify these are real businesses: Tesla, Apple, Stripe',
-  'Are these 12 vendors actually registered?',
+  'Verify these are real businesses: Tesla, Nvidia, Costco',
+  'Are these 8 companies actually registered?',
   'Check if these companies are active',
 ];
 
+// Pill accent per action tone. Full literal classes (so Tailwind's JIT keeps them) using only
+// confirmed design tokens — colored tint bg + fg text carry the tone; border stays safe.
+const PILL_TONE: Record<ActionEvent['tone'], string> = {
+  plan: 'text-info-fg bg-info-tint border-border',
+  run: 'text-accent-text bg-neutral-tint border-border-accent',
+  check: 'text-warning-fg bg-warning-tint border-border',
+  done: 'text-success-fg bg-success-tint border-border',
+};
+
+function ActionPill({ label, tone }: { label: string; tone: ActionEvent['tone'] }) {
+  return (
+    <div className="flex justify-start">
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${PILL_TONE[tone]}`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+        {label}
+      </span>
+    </div>
+  );
+}
+
+type FeedItem =
+  | { kind: 'user' | 'assistant'; id: string; text: string; sortTs: number }
+  | { kind: 'pill'; id: string; label: string; tone: ActionEvent['tone']; sortTs: number };
+
 export function LiveRunPanel({
   messages,
+  actions = [],
   tiles,
   phase,
   elapsed,
@@ -45,6 +76,8 @@ export function LiveRunPanel({
   listening,
 }: {
   messages: UIMessage[];
+  /** Streamed agent actions (pills) — planning / running / checking / done. */
+  actions?: ActionEvent[];
   tiles: Tile[];
   phase: string;
   elapsed: number;
@@ -55,22 +88,47 @@ export function LiveRunPanel({
   listening?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // First-seen timestamp per message id — the realtime UIMessages carry no reliable createdAt,
+  // so we stamp each id the first render we see it. Interleaves pills with turns by time.
+  const firstSeen = useRef<Map<string, number>>(new Map());
 
-  // Real conversation turns — drop empties and the injected [status] progress pings (those drive
-  // narration but shouldn't clutter the log; FRIDAY's spoken narration of them still shows).
-  const turns = messages
-    .map((m) => ({ id: m.id, role: m.role, text: textOf(m) }))
-    .filter((t) => t.text && !t.text.startsWith('[status]'));
+  // Build the merged feed: conversation turns (kept in the hook's array order via a monotonic
+  // clamp) plus action pills, sorted by time. [status] turns are dropped — they're represented
+  // by pills now. Empty USER turns are KEPT (pending "…") so the reply never renders above them.
+  let prevTs = 0;
+  const turnItems: FeedItem[] = [];
+  for (const m of messages) {
+    const text = textOf(m);
+    if (text.startsWith('[status]')) continue; // action channel → shown as pills, not chat
+    if (m.role === 'assistant' && !text) continue; // skip empty assistant fragments
+    let ts = firstSeen.current.get(m.id);
+    if (ts === undefined) {
+      ts = Date.now();
+      firstSeen.current.set(m.id, ts);
+    }
+    const sortTs = Math.max(ts, prevTs + 1); // keep conversation order even if stamps tie
+    prevTs = sortTs;
+    turnItems.push({ kind: m.role === 'user' ? 'user' : 'assistant', id: m.id, text, sortTs });
+  }
+  const pillItems: FeedItem[] = actions.map((a) => ({
+    kind: 'pill',
+    id: a.id,
+    label: a.label,
+    tone: a.tone,
+    sortTs: a.ts,
+  }));
+  const feed = [...turnItems, ...pillItems].sort((a, b) => a.sortTs - b.sortTs);
 
+  const hasConversation = turnItems.length > 0 || pillItems.length > 0;
   const settled = tiles.filter((t) => SETTLED.includes(t.status)).length;
   const errored = tiles.filter((t) => t.status === 'error').length;
   const running = phase === 'running' || phase === 'spawning';
 
-  // Follow the feed as turns/tiles come in (and when the listening bubble appears).
+  // Follow the feed as items come in (and when the listening bubble appears).
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [turns.length, settled, listening]);
+  }, [feed.length, settled, listening]);
 
   return (
     <div className="h-full flex flex-col bg-surface border-l border-border">
@@ -86,7 +144,7 @@ export function LiveRunPanel({
         )}
       </div>
 
-      {/* Conversation feed */}
+      {/* Conversation + action feed */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {title && phase !== 'idle' && (
           <div className="rounded-md border border-border bg-info-tint p-3 font-mono text-[11px] uppercase tracking-wider text-text">
@@ -94,46 +152,47 @@ export function LiveRunPanel({
           </div>
         )}
 
-        {turns.length === 0 ? (
+        {!hasConversation ? (
           <p className="text-xs text-text-muted font-mono text-center mt-8">
             {running ? 'Working…' : 'Tap the mic or type a task to begin.'}
           </p>
         ) : (
-          turns.map((t) =>
-            t.role === 'user' ? (
-              <div key={t.id} className="flex justify-end">
-                <div className="max-w-[85%] px-3 py-2 rounded-lg bg-surface-2 border border-border text-xs text-text">
-                  {t.text}
+          feed.map((item) => {
+            if (item.kind === 'pill') return <ActionPill key={item.id} label={item.label} tone={item.tone} />;
+            if (item.kind === 'user') {
+              return (
+                <div key={item.id} className="flex justify-end">
+                  <div className="max-w-[85%] px-3 py-2 rounded-lg bg-surface-2 border border-border text-xs text-text">
+                    {/* Pending transcript: hold the slot so the reply can't jump above it. */}
+                    {item.text || <PendingDots />}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div key={t.id} className="space-y-1">
+              );
+            }
+            return (
+              <div key={item.id} className="space-y-1">
                 <p className="text-[10px] font-semibold text-accent-text uppercase tracking-wider">
                   F.R.I.D.A.Y.
                 </p>
-                <p className="text-xs text-text-muted leading-relaxed">{t.text}</p>
+                <p className="text-xs text-text-muted leading-relaxed">{item.text}</p>
               </div>
-            ),
-          )
+            );
+          })
         )}
 
-        {/* Instant "I hear you" while speech is being captured — the real transcript
-            arrives asynchronously and replaces this in the flow of turns. */}
+        {/* Instant "I hear you" while speech is being captured, if no pending user turn exists
+            yet (the transcript item can lag the mic). */}
         {listening && (
           <div className="flex justify-end">
             <div className="px-3 py-2 rounded-lg bg-surface-2 border border-border">
-              <span className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse" />
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse [animation-delay:300ms]" />
-              </span>
+              <PendingDots />
             </div>
           </div>
         )}
       </div>
 
       {/* Try saying — only before a run, when there's no conversation yet */}
-      {phase === 'idle' && turns.length === 0 && (
+      {phase === 'idle' && !hasConversation && (
         <div className="flex-shrink-0 border-t border-border px-4 py-3">
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-text-muted mb-2">
             Try saying
@@ -151,5 +210,15 @@ export function LiveRunPanel({
         </div>
       )}
     </div>
+  );
+}
+
+function PendingDots() {
+  return (
+    <span className="flex gap-1 items-center">
+      <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse [animation-delay:150ms]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-accent-text animate-pulse [animation-delay:300ms]" />
+    </span>
   );
 }
