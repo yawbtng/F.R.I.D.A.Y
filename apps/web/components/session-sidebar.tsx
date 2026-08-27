@@ -1,9 +1,9 @@
 'use client';
 
-import { useQuery } from 'convex/react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { api } from '../../../convex/_generated/api';
-import type { Id } from '../../../convex/_generated/dataModel';
+import { loadRuns, RUNS_EVENT, type RunRecord } from '@/lib/run-history';
+import { RESOLVED_STATUSES } from '@/lib/report';
 
 // ---------------------------------------------------------------------------
 // Animation variants
@@ -39,11 +39,46 @@ function relativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
-const statusColors: Record<string, string> = {
-  active: 'bg-success',
-  idle: 'bg-warning',
-  error: 'bg-error',
-};
+/** A run's headline stat: how many targets settled with a useful answer, and whether any
+ *  errored — this drives the status dot (all-good / mixed / all-failed). */
+function runStats(run: RunRecord): { resolved: number; total: number; errored: number } {
+  const total = run.tiles.length;
+  let resolved = 0;
+  let errored = 0;
+  for (const t of run.tiles) {
+    if (RESOLVED_STATUSES.has(t.status)) resolved++;
+    if (t.status === 'error') errored++;
+  }
+  return { resolved, total, errored };
+}
+
+function dotColor(resolved: number, total: number): string {
+  if (total === 0) return 'bg-neutral';
+  if (resolved === total) return 'bg-success';
+  if (resolved === 0) return 'bg-error';
+  return 'bg-warning';
+}
+
+/** Read the run history and keep it fresh: on mount, whenever a run is saved/patched in this
+ *  tab (RUNS_EVENT), on cross-tab writes (storage), and when the tab regains focus. */
+function useRunHistory(): RunRecord[] {
+  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const refresh = useCallback(() => setRuns(loadRuns()), []);
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener(RUNS_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener(RUNS_EVENT, refresh);
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [refresh]);
+
+  return runs;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -51,8 +86,10 @@ const statusColors: Record<string, string> = {
 
 interface SessionSidebarProps {
   collapsed: boolean;
+  /** The run record currently open in the report modal, if any. */
   activeSessionId?: string;
-  onSelectSession?: (sessionId: string) => void;
+  /** Called with a run record id when the user picks a past run. */
+  onSelectSession?: (runId: string) => void;
   onNewSession?: () => void;
 }
 
@@ -62,7 +99,7 @@ export function SessionSidebar({
   onSelectSession,
   onNewSession,
 }: SessionSidebarProps) {
-  const sessions = useQuery(api.sessions.list);
+  const runs = useRunHistory();
 
   return (
     <div className="h-full flex flex-col bg-surface border-r border-border">
@@ -112,43 +149,33 @@ export function SessionSidebar({
         </div>
       )}
 
-      {/* Session list */}
+      {/* Run list */}
       <motion.div
         className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5"
         variants={listVariants}
         initial="hidden"
         animate="visible"
       >
-        {sessions === undefined ? (
-          /* Loading skeleton */
-          <div className="space-y-2 mt-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-14 rounded-md bg-neutral-tint animate-pulse"
-              />
-            ))}
-          </div>
-        ) : sessions.length === 0 ? (
-          /* Empty state */
-          !collapsed && (
-            <motion.p
-              variants={cardVariants}
-              className="text-xs text-text-muted font-mono text-center mt-8"
-            >
-              No sessions yet.{'\n'}Start one above.
-            </motion.p>
-          )
-        ) : (
-          /* Session cards */
-          sessions.map((session) => {
-            const isActive = activeSessionId === session._id;
-            return (
-              <motion.button
-                key={session._id}
+        {runs.length === 0
+          ? /* Empty state */
+            !collapsed && (
+              <motion.p
                 variants={cardVariants}
-                onClick={() => onSelectSession?.(session._id)}
-                className={`
+                className="text-xs text-text-muted font-mono text-center mt-8 whitespace-pre-line"
+              >
+                {'No runs yet.\nStart one above.'}
+              </motion.p>
+            )
+          : /* Run cards */
+            runs.map((run) => {
+              const isActive = activeSessionId === run.id;
+              const { resolved, total, errored } = runStats(run);
+              return (
+                <motion.button
+                  key={run.id}
+                  variants={cardVariants}
+                  onClick={() => onSelectSession?.(run.id)}
+                  className={`
                   w-full text-left rounded-md px-3 py-2 text-sm transition-all duration-200 border-l-2
                   ${
                     isActive
@@ -156,35 +183,32 @@ export function SessionSidebar({
                       : 'text-text-muted border-transparent hover:bg-surface-2'
                   }
                 `}
-              >
-                {collapsed ? (
-                  /* Collapsed: just status dot */
-                  <div className="flex justify-center">
-                    <span
-                      className={`w-2 h-2 rounded-full ${statusColors[session.status] ?? 'bg-neutral'}`}
-                    />
-                  </div>
-                ) : (
-                  /* Expanded card */
-                  <div className="flex items-start gap-2.5">
-                    {/* Status dot */}
-                    <span
-                      className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${statusColors[session.status] ?? 'bg-neutral'}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">
-                        {session.title || 'Untitled Session'}
-                      </p>
-                      <p className="font-mono text-xs text-text-muted mt-0.5">
-                        {relativeTime(session.lastActiveAt)}
-                      </p>
+                >
+                  {collapsed ? (
+                    /* Collapsed: just the status dot */
+                    <div className="flex justify-center">
+                      <span className={`w-2 h-2 rounded-full ${dotColor(resolved, total)}`} />
                     </div>
-                  </div>
-                )}
-              </motion.button>
-            );
-          })
-        )}
+                  ) : (
+                    /* Expanded card */
+                    <div className="flex items-start gap-2.5">
+                      <span
+                        className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${dotColor(resolved, total)}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate text-text" title={run.task}>
+                          {run.task || 'Untitled run'}
+                        </p>
+                        <p className="font-mono text-xs text-text-muted mt-0.5">
+                          {relativeTime(run.ts)} · {resolved}/{total}
+                          {errored ? ` · ${errored} err` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </motion.button>
+              );
+            })}
       </motion.div>
     </div>
   );
