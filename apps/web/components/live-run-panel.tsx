@@ -10,8 +10,8 @@
 
 import { useEffect, useRef } from 'react';
 import type { UIMessage } from 'ai';
+import type { ActionEvent, StampedMessage } from '@/hooks/use-friday';
 import type { Tile } from './swarm-grid';
-import type { ActionEvent } from '@/hooks/use-friday';
 
 /** Flatten a v7 UIMessage to plain text. Assistant turns carry `type:'text'` parts; the user's
  *  SPOKEN turns carry the Whisper transcript on a different part shape (e.g. `transcript`/`audio`),
@@ -75,7 +75,9 @@ export function LiveRunPanel({
   title,
   listening,
 }: {
-  messages: UIMessage[];
+  /** Conversation turns, each stamped by useFriday with when it first appeared — the panel can't
+   *  stamp them itself because it unmounts whenever the log is hidden. */
+  messages: StampedMessage[];
   /** Streamed agent actions (pills) — planning / running / checking / done. */
   actions?: ActionEvent[];
   tiles: Tile[];
@@ -88,9 +90,6 @@ export function LiveRunPanel({
   listening?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // First-seen timestamp per message id — the realtime UIMessages carry no reliable createdAt,
-  // so we stamp each id the first render we see it. Interleaves pills with turns by time.
-  const firstSeen = useRef<Map<string, number>>(new Map());
 
   // Build the merged feed: conversation turns (kept in the hook's array order via a monotonic
   // clamp) plus action pills, sorted by time. [status] turns are dropped — they're represented
@@ -101,12 +100,7 @@ export function LiveRunPanel({
     const text = textOf(m);
     if (text.startsWith('[status]')) continue; // action channel → shown as pills, not chat
     if (m.role === 'assistant' && !text) continue; // skip empty assistant fragments
-    let ts = firstSeen.current.get(m.id);
-    if (ts === undefined) {
-      ts = Date.now();
-      firstSeen.current.set(m.id, ts);
-    }
-    const sortTs = Math.max(ts, prevTs + 1); // keep conversation order even if stamps tie
+    const sortTs = Math.max(m.firstSeen, prevTs + 1); // keep conversation order even if stamps tie
     prevTs = sortTs;
     turnItems.push({ kind: m.role === 'user' ? 'user' : 'assistant', id: m.id, text, sortTs });
   }

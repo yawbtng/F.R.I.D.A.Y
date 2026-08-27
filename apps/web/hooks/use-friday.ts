@@ -5,6 +5,7 @@
 // so page components stay thin. Voice tool calls flow in here; swarm state flows back out.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { UIMessage } from "ai";
 import { useVoice } from "./use-voice";
 import { useSwarm } from "./use-swarm";
 import { planToTargets, type SwarmTarget } from "@/lib/swarm-target";
@@ -22,6 +23,13 @@ export interface ActionEvent {
   tone: "plan" | "run" | "check" | "done";
 }
 
+/** A conversation turn carrying the moment it first appeared. The realtime UIMessages have no
+ *  reliable createdAt, and the mission log has to interleave them with action pills by time, so
+ *  we stamp each id here — in the always-mounted hook, next to the pills whose `ts` it's sorted
+ *  against. The panel that renders the merge is conditionally mounted (Hide mission log), so a
+ *  stamp kept there would be lost on every toggle and re-date the whole backlog to "now". */
+export type StampedMessage = UIMessage & { firstSeen: number };
+
 export function useFriday() {
   const swarm = useSwarm();
   const [plan, setPlan] = useState<SwarmTarget[]>([]);
@@ -37,7 +45,10 @@ export function useFriday() {
   const pushAction = useCallback((label: string, tone: ActionEvent["tone"]) => {
     setActions((prev) => {
       // Dedupe consecutive identical labels (the progress effect re-fires on every tile change).
-      if (prev.length && prev[prev.length - 1].label === label) return prev;
+      // Planning pills are exempt: planning is user-initiated, never re-fired by an effect, and
+      // each call is a fresh 10-20s wait. Suppressing the second one (plan task A, then task B)
+      // leaves the log visibly frozen exactly while the slowest step is running.
+      if (tone !== "plan" && prev.length && prev[prev.length - 1].label === label) return prev;
       return [...prev, { id: `a${actionSeq.current++}`, ts: Date.now(), label, tone }];
     });
   }, []);
@@ -217,7 +228,20 @@ export function useFriday() {
   // clearMessages, so we snapshot the current message ids on reset and filter them out; genuinely
   // new turns (fresh ids after reconnect) still appear.
   const hiddenMsgIds = useRef<Set<string>>(new Set());
-  const visibleMessages = voice.messages.filter((m) => !hiddenMsgIds.current.has(m.id));
+  // First-seen stamp per message id (see StampedMessage). Written on the render a turn first
+  // shows up and never rewritten, so a turn keeps its true position in the merged feed for the
+  // life of the session; cleared by resetAll so the map can't outlive the transcript it describes.
+  const msgFirstSeen = useRef<Map<string, number>>(new Map());
+  const visibleMessages: StampedMessage[] = voice.messages
+    .filter((m) => !hiddenMsgIds.current.has(m.id))
+    .map((m) => {
+      let firstSeen = msgFirstSeen.current.get(m.id);
+      if (firstSeen === undefined) {
+        firstSeen = Date.now();
+        msgFirstSeen.current.set(m.id, firstSeen);
+      }
+      return { ...m, firstSeen };
+    });
 
   // M3 progress bridge: two channels off ONE read of swarm state — action pills (always) and
   // spoken [status] notes (only on a live realtime session). Both are derived from swarm.phase /
@@ -242,15 +266,26 @@ export function useFriday() {
     const tiles = swarm.tiles;
     const connected = voice.status === "connected";
 
-    if (swarm.phase === "idle") {
+    // Every ref below is RUN-scoped, so it has to be zeroed at the START of a run, not only on
+    // idle. useSwarm.run() goes spawning → running → done and never passes back through idle, so
+    // a second run in the same session (e.g. "now check these three instead") would otherwise
+    // inherit run 1's counters: lastPillSettled stuck at run 1's total means `settled >` never
+    // holds (no progress pills at all), and doneAnnounced stuck true means no "Verified" pill AND
+    // no [status] Swarm finished — on the voice path FRIDAY would silently never report run 2.
+    if (swarm.phase === "idle" || swarm.phase === "spawning") {
       lastPillSettledRef.current = 0;
       lastSettledRef.current = 0;
       lastAnnounceRef.current = 0;
       doneAnnouncedRef.current = false;
-      return;
     }
+    if (swarm.phase === "idle") return;
     if (swarm.phase === "spawning") {
-      pushAction(`Spawning ${tiles.length || swarm.tiles.length || ""} cloud browsers`.trim(), "run");
+      // Count from the PLAN, not the tiles: run() flips to 'spawning' before the fleet resolves
+      // and leaves the previous run's tiles in place, so tiles.length is either 0 (first run —
+      // count vanishes) or the last run's size (second run — wrong count). The plan is what's
+      // about to be spawned, and both entry paths (runSwarm tool, manual Run button) fill it first.
+      const count = planRef.current.length;
+      pushAction(count ? `Spawning ${count} cloud browsers` : "Spawning cloud browsers", "run");
       return;
     }
     if (tiles.length === 0) return;
@@ -304,6 +339,7 @@ export function useFriday() {
     // Hide the current transcript, then end the voice session so the model's conversation context
     // resets too — "New Session" means a genuine fresh start, not just a cleared screen.
     hiddenMsgIds.current = new Set(voiceRef.current.messages.map((m) => m.id));
+    msgFirstSeen.current = new Map(); // every stamped id is now hidden — drop them, don't leak
     voiceRef.current.disconnect();
     swarmRef.current.reset();
     setPlan([]);
