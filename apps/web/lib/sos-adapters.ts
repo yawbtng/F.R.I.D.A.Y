@@ -56,6 +56,38 @@ export const STATUS_EXTRACT =
   "blocked = the page is a CAPTCHA, 'are you human', security/robot check, access-denied, or " +
   "'this site can't be reached' page, so the record could not be reached.";
 
+// ---------------------------------------------------------------------------
+// EDGAR: the reliable KYB source for the general (free-form) verification path.
+// ---------------------------------------------------------------------------
+// Consumer-facing registries are too fragile to drive on camera: state SoS portals are slow
+// SPAs that blow the per-attempt timeout (CA), paywall status (DE, NJ), or sit behind CAPTCHAs
+// (OpenCorporates, AZ) — every one of those failure modes was hit live against the real portals
+// while probing this path during development, not taken on faith. The U.S. SEC's EDGAR is the
+// opposite: server-rendered HTML, built for programmatic access (no bot wall), and definitive
+// for PUBLIC companies. Live probe: Tesla/Nvidia/Costco -> active in ~15s each; a private
+// company (Stripe) correctly -> notfound. So the general KYB path routes every company here.
+// (Private companies have no SEC filings and honestly read as notfound — not a failure.)
+// NO type filter: `&type=10-K` makes EDGAR return "No matching" for some filers (e.g. Walmart)
+// even though they file 10-Ks — verified live. Searching by company name alone reliably lists
+// the company for any registered filer, which is all we need to confirm registration.
+export const edgarSearchUrl = (entity: string): string =>
+  `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(
+    entity,
+  )}&type=&dateb=&owner=include&count=10`;
+
+export const edgarGoal = (entity: string): string =>
+  `You are on U.S. SEC EDGAR, looking up "${entity}". EDGAR shows ONE of two layouts: (a) a results ` +
+  `list of matching companies, or (b) — for an exact match — that company's filing page directly, with ` +
+  `its name and a CIK number at the top. In EITHER layout, if a company matching "${entity}" is visible ` +
+  `(in the list, or as the company whose filings are shown), it is a registered SEC filer. Do NOT click ` +
+  `into any filing or navigate away — the answer is already on THIS page. Read it and stop.`;
+
+export const EDGAR_EXTRACT =
+  `Does this EDGAR page show a company matching the searched name — either listed in a results table, OR ` +
+  `as the company whose filings are shown (its name and a CIK number appear near the top)? Reply with ` +
+  `EXACTLY one word: active = yes, a matching registered company is present; notfound = no matching ` +
+  `company (e.g. the page says "No matching companies").`;
+
 // Status-public, free portals only (status shown on the public record, no login/payment).
 // Curated from research + live verification; pay-to-view (DE, NJ), status-not-free (TX),
 // CAPTCHA (AZ), and mid-migration (NV) portals are deliberately excluded. Each URL must be

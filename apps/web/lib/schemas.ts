@@ -69,11 +69,29 @@ export const PlanRequestSchema = z.object({
 // emits a bare domain, and one bad URL must not fail the whole plan; the worker cleans it.
 export const PlanTargetSchema = z.object({
   label: z.string(),
+  // The bare entity a source-pinned target is looked up BY — deliberately distinct from `label`,
+  // which is display text for the tile. For kind:"fact" this is the Wikipedia article subject
+  // ("Airbnb", "Tokyo", "Notion"), never the question; for kind:"kyb" it is the plain company name
+  // ("Tesla"). Null for kind:"general" (nothing is pinned, so there is nothing to look up by).
+  // Routing used to be derived from `label` — a display string the planner is only softly told to
+  // keep bare — so a reasonable "Airbnb founding year" label became /wiki/Airbnb_founding_year, i.e.
+  // Wikipedia's no-such-article page, on a target that is single-pass and never retries. The routing
+  // key must not be inferred from text the UI is free to phrase for humans. Nullable-not-optional and
+  // omitted-means-null per the strict-mode note above; planToTargets falls back to the old
+  // label-derivation when it IS null, because an LLM will sometimes leave it out.
+  subject: z.string().nullable(),
   startUrl: z.string().nullable(),
   query: z.string().nullable(),
   goal: z.string(),
   extract: z.string(),
   engine: z.enum(["stagehand", "bb-agent"]).nullable(),
+  // Routing hint used by planToTargets to override the target's source deterministically:
+  //  - "kyb"  = company-registration check -> SEC EDGAR (portal + goal + extract + classifier).
+  //  - "fact" = a factual lookup about an entity/place/person/product -> Wikipedia (portal + goal;
+  //             the planner's own `extract` question is kept). The open web is too slow/flaky to
+  //             drive per-site, so for these classes we never trust the LLM's URL choice.
+  //  - "general" (or null) = drive whatever startUrl/query the planner chose.
+  kind: z.enum(["kyb", "fact", "general"]).nullable(),
 });
 
 export const PlanOutputSchema = z.object({

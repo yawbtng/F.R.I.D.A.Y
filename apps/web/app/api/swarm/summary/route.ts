@@ -77,12 +77,16 @@ export async function POST(req: NextRequest) {
     `Status meanings: done = target completed and returned the answer shown; active = registered / in good ` +
     `standing; inactive = dissolved / revoked / expired (worth attention); notfound = no matching record; ` +
     `blocked = the site blocked automated access (CAPTCHA/anti-bot) so it could not be read — a portal ` +
-    `limitation, NOT a red flag; error = the check itself failed.\n\n` +
+    `limitation, NOT a red flag; error = the check itself failed (the text after "->" is the reason, e.g. ` +
+    `the browser session ended, the site timed out, or a bot-wall).\n\n` +
     `Write the synthesis (the per-target rows are shown separately in the UI, so do NOT re-list them all):\n` +
     `- headline: one sentence with the overall finding (how many resolved, the gist).\n` +
     `- takeaway: one-line bottom line for whoever asked.\n` +
-    `- notes: 1-4 short bullet strings flagging what needs attention (inactive/dissolved, blocked portals, ` +
-    `errors, anomalies) and calling out a couple of notable answers. Empty array if nothing notable.\n` +
+    `- notes: 1-4 short bullet strings. Lead with real findings (inactive/dissolved, notable answers). When ` +
+    `targets are blocked or errored, explain WHY in plain English (e.g. "3 state portals blocked automated ` +
+    `access behind a CAPTCHA" or "2 checks timed out on slow government sites") and, when useful, the fix ` +
+    `("a stealth retry with proxies usually clears anti-bot walls"). Group similar failures into one note ` +
+    `rather than one per target. Empty array only if everything resolved cleanly.\n` +
     `Plain text, no markdown symbols. Be precise; never invent targets not in the data.`;
 
   try {

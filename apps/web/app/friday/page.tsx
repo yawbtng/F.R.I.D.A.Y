@@ -18,6 +18,7 @@ import { PlanningLoader } from '@/components/planning-loader';
 import { BrowserModal } from '@/components/browser-modal';
 import { ArtifactModal } from '@/components/artifact-modal';
 import { LiveRunPanel } from '@/components/live-run-panel';
+import { loadRuns, type RunRecord } from '@/lib/run-history';
 
 // Statuses that count as a settled answer for the header tally (mirrors swarm/page.tsx).
 const SETTLED = ['active', 'inactive', 'notfound', 'done'];
@@ -51,12 +52,24 @@ export default function FridayPage() {
     diagram,
     visualize,
     messages,
+    actions,
     resetAll,
   } = useFriday();
 
   const [planning, setPlanning] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [diagramLoading, setDiagramLoading] = useState(false);
+  // A past run reopened from the sidebar. Rendered as a read-only report (from its saved
+  // findings + narrative) alongside the live one — the localStorage store is the source.
+  const [savedRun, setSavedRun] = useState<RunRecord | null>(null);
+  const openSavedRun = (runId: string) => {
+    const record = loadRuns().find((r) => r.id === runId);
+    if (record) setSavedRun(record);
+  };
+  const handleNewSession = () => {
+    setSavedRun(null); // close any reopened past run
+    resetAll();
+  };
 
   // Report-modal "Diagram" button (no-voice path): generate a Mermaid diagram from the finished run.
   const doVisualize = async () => {
@@ -303,6 +316,7 @@ export default function FridayPage() {
   const rightPanel = (
     <LiveRunPanel
       messages={messages}
+      actions={actions}
       tiles={tiles}
       phase={phase}
       elapsed={elapsed}
@@ -313,7 +327,15 @@ export default function FridayPage() {
 
   return (
     <>
-      <FridayShell center={center} headerRight={headerRight} rightPanel={rightPanel} onNewSession={resetAll} />
+      <FridayShell
+        center={center}
+        headerRight={headerRight}
+        rightPanel={rightPanel}
+        onNewSession={handleNewSession}
+        onSelectSession={openSavedRun}
+        // Highlight the reopened run's sidebar card; clears with savedRun on close / New Session.
+        activeRunId={savedRun?.id}
+      />
 
       <AnimatePresence>
         {focusedTile && <BrowserModal tile={focusedTile} onClose={() => setFocusedId(null)} />}
@@ -330,6 +352,20 @@ export default function FridayPage() {
             diagramLoading={diagramLoading}
             onVisualize={doVisualize}
             onClose={closeReport}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* A past run reopened from the sidebar — read-only report rebuilt from its saved
+          findings + narrative (no diagram/visualize; those need the live browser tiles). */}
+      <AnimatePresence>
+        {savedRun && (
+          <ArtifactModal
+            task={savedRun.task || 'F.R.I.D.A.Y. run'}
+            items={savedRun.tiles}
+            narrative={savedRun.narrative ?? null}
+            loading={false}
+            onClose={() => setSavedRun(null)}
           />
         )}
       </AnimatePresence>

@@ -7,6 +7,7 @@ import { STATUS_META, hostOf, type TileState } from './grid-tile';
 import { MermaidDiagram } from './mermaid-diagram';
 import {
   buildReport,
+  describeOutcome,
   donutSvg,
   reportToMarkdown,
   reportToPrintableHtml,
@@ -121,17 +122,25 @@ function SynthLoader() {
 function ItemRow({ it }: { it: ReportItem }) {
   const m = metaFor(it.status);
   const tone = toneOf(it.status);
+  const resolved = RESOLVED_STATUSES.has(it.status);
   // Section-level cue: verified rows read as success, needs-attention as warning.
-  const rowTint = RESOLVED_STATUSES.has(it.status) ? 'bg-success-tint' : 'bg-warning-tint';
+  const rowTint = resolved ? 'bg-success-tint' : 'bg-warning-tint';
+  const reason = resolved ? '' : describeOutcome(it); // plain-English "why" for failed rows
   return (
-    <div className={`flex items-center gap-3 rounded-md border border-border px-3 py-2 ${rowTint}`}>
+    <div className={`flex items-start gap-3 rounded-md border border-border px-3 py-2 ${rowTint}`}>
       {it.screenshotUrl ? (
         <img src={it.screenshotUrl} alt="" className="w-16 h-10 shrink-0 object-cover rounded border border-border" />
       ) : (
         <div className="w-16 h-10 shrink-0 rounded bg-surface-2 border border-border" />
       )}
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-text truncate">{it.label}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-medium text-text truncate">{it.label}</div>
+          <span className={`shrink-0 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide ${TONE_FG[tone]}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${TONE_DOT[tone]}`} />
+            {m.label}
+          </span>
+        </div>
         {it.url && (
           <a
             href={it.url}
@@ -142,13 +151,17 @@ function ItemRow({ it }: { it: ReportItem }) {
             {hostOf(it.url)}
           </a>
         )}
-      </div>
-      <span className={`shrink-0 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide ${TONE_FG[tone]}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${TONE_DOT[tone]}`} />
-        {m.label}
-      </span>
-      <div className={`shrink-0 max-w-[38%] text-sm font-semibold truncate text-right ${TONE_FG[tone]}`} title={it.result}>
-        {it.result || '—'}
+        {/* Resolved: the extracted answer. Needs-work: the plain-English reason, wrapped so
+            it's fully readable (the old right-aligned truncation hid the "why"). */}
+        {resolved ? (
+          it.result && (
+            <div className={`mt-0.5 text-sm font-semibold ${TONE_FG[tone]}`} title={it.result}>
+              {it.result}
+            </div>
+          )
+        ) : (
+          <div className={`mt-0.5 text-xs leading-relaxed ${TONE_FG[tone]}`}>{reason}</div>
+        )}
       </div>
     </div>
   );

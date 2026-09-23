@@ -27,6 +27,51 @@ export interface ReportModel {
 /** Settled, useful answers (as opposed to blocked / notfound / error which need work). */
 export const RESOLVED_STATUSES = new Set(["done", "active", "inactive"]);
 
+/** The classifier's own one-word vocabulary. STATUS_EXTRACT and EDGAR_EXTRACT both instruct the
+ *  agent to reply with EXACTLY one of these words, so on a KYB target `result` IS the status
+ *  token — not a description of it. Covers every WorkerStatus (active/inactive/notfound/blocked
+ *  plus the generic done/error), with the punctuation and quoting an LLM adds around a one-word
+ *  answer. See sos-adapters.ts. */
+const STATUS_TOKEN = /^["']?(active|inactive|not\s?found|notfound|blocked|error|done)["']?[.!]?$/i;
+
+/** Raw extract text, or "" when it is just the status token echoed back — so the caller's
+ *  human-readable fallback wins instead of printing the badge word a third time. */
+const meaningful = (raw: string): string => (STATUS_TOKEN.test(raw) ? "" : raw);
+
+/** The human-facing outcome for one row: the extracted answer for a resolved target, or a
+ *  plain-English reason for a failed one. Error tiles now carry the raw failure string
+ *  (session lost, timeout, bot-wall); a reader wants "why", not a stack trace. Shared by the
+ *  report modal and the Markdown/PDF exporters so all three read identically.
+ *
+ *  Every failure branch runs `raw` through `meaningful` first. Without it the flagship demo's
+ *  Stripe row read label "Stripe" / badge "Not found" / reason "notfound" — the same word three
+ *  times and no explanation — because EDGAR_EXTRACT tells the agent to answer with the literal
+ *  word `notfound`, so `raw` was truthy and the friendly sentence could never win. The resolved
+ *  branch deliberately keeps its token: there "active" is the finding, and blanking it would
+ *  leave the Answer column an em dash. */
+export function describeOutcome(it: Pick<ReportItem, "status" | "result">): string {
+  const raw = (it.result ?? "").trim();
+  if (RESOLVED_STATUSES.has(it.status)) return raw;
+  if (it.status === "blocked")
+    // Strip the prefix BEFORE the token check: "blocked: captcha" is real detail, bare
+    // "blocked" (or "blocked:") is not.
+    return (
+      meaningful(raw.replace(/^blocked:\s*/i, "").trim()) ||
+      "The site blocked automated access (anti-bot wall)."
+    );
+  if (it.status === "notfound")
+    return meaningful(raw) || "No matching record was found in this registry.";
+  if (it.status === "error") {
+    if (/session (lost|is no longer|ended)|awaitActivePage|CDP transport|socket-close/i.test(raw))
+      return "The browser session ended before the check finished.";
+    if (/tim(ed )?out|timeout/i.test(raw)) return "The site was too slow to respond in time.";
+    if (/captcha|turnstile|bot|are you human|challenge/i.test(raw))
+      return "The site blocked automated access (anti-bot wall).";
+    return meaningful(raw) || "The check failed before returning a result.";
+  }
+  return raw;
+}
+
 const host = (url?: string): string => {
   if (!url) return "";
   try {
@@ -102,7 +147,7 @@ export function reportToMarkdown(m: ReportModel): string {
   for (const it of m.items) {
     const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
     const src = it.url ? `[${host(it.url)}](${it.url})` : "—";
-    out.push(`| ${cell(it.label)} | ${it.status} | ${cell(it.result || "—")} | ${src} |`);
+    out.push(`| ${cell(it.label)} | ${it.status} | ${cell(describeOutcome(it) || "—")} | ${src} |`);
   }
   out.push("");
   if (m.narrative?.notes?.length) {
@@ -135,7 +180,7 @@ export function reportToPrintableHtml(m: ReportModel): string {
       <td class="thumb">${it.screenshotUrl ? `<img src="${esc(it.screenshotUrl)}" alt="">` : ""}</td>
       <td><div class="label">${esc(it.label)}</div>${it.url ? `<a href="${esc(it.url)}">${esc(host(it.url))}</a>` : ""}</td>
       <td><span class="badge" style="background:${BADGE[it.status] ?? "#6b7280"}">${esc(it.status)}</span></td>
-      <td class="answer">${esc(it.result || "—")}</td>
+      <td class="answer">${esc(describeOutcome(it) || "—")}</td>
     </tr>`,
     )
     .join("");

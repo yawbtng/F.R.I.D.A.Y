@@ -44,12 +44,45 @@ function releaseFleet(browsers: SpawnedBrowser[]) {
   for (const b of browsers) releaseOne(b);
 }
 
-/** Capture the final page as a data-URL so the tile can freeze after the session closes. */
+/** Release the whole fleet in ONE request that survives page teardown.
+ *
+ *  releaseOne() above uses fetch(), which the browser is free to cancel the moment the document
+ *  goes away — so closing the tab mid-run released nothing. `navigator.sendBeacon` is the only
+ *  send guaranteed to be queued and flushed after teardown, but it can only POST a body (no
+ *  DELETE, no Authorization header), which is why /api/fleet/release exists alongside the
+ *  per-session DELETE. Falls back to keepalive fetch where sendBeacon is unavailable. */
+function releaseFleetBeacon(browsers: SpawnedBrowser[]) {
+  const sessionIds = browsers.map((b) => b.sessionId).filter(Boolean);
+  if (sessionIds.length === 0) return;
+  const body = JSON.stringify({ sessionIds });
+  if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+    navigator.sendBeacon('/api/fleet/release', new Blob([body], { type: 'application/json' }));
+    return;
+  }
+  fetch('/api/fleet/release', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+// The screenshot is decoration on a settled tile, so it must never be able to hold the run open.
+// In production the route's `maxDuration = 60` bounds it, but `next dev` does NOT enforce
+// maxDuration: against a hung capture the awaited call never returns, the tile stays 'working'
+// forever, Promise.allSettled never resolves, phase never reaches 'done', and the only way out is
+// a page reload (the "New" button is disabled while running). 20s is far above the ~1-3s a
+// capture+compress actually takes, so it only ever fires on a genuine hang.
+const SCREENSHOT_TIMEOUT_MS = 20_000;
+
+/** Capture the final page as a data-URL so the tile can freeze after the session closes.
+ *  Best-effort: any failure (including the timeout) degrades to "no frame", never a failed tile. */
 async function captureFrame(b: SpawnedBrowser): Promise<string | undefined> {
   try {
     const res = await fetch('/api/browser/screenshot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${b.token}` },
+      signal: AbortSignal.timeout(SCREENSHOT_TIMEOUT_MS),
       body: JSON.stringify({ sessionId: b.sessionId }),
     });
     if (!res.ok) return undefined;
@@ -70,12 +103,31 @@ export function useSwarm() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [narrative, setNarrative] = useState<ReportNarrative | null>(null);
+  // Two generation counters, because "a new run" and "the tiles are moving again" are
+  // different events and the latches that key off them want different answers.
+  //
+  //   runGen    — bumped ONLY by run(). Identifies the run RECORD. A stealth retry or a
+  //               voice retarget is a continuation of the same run (same targets, same
+  //               task, same history entry), so they must NOT bump it — bumping would
+  //               orphan the record we're still patching and save a duplicate.
+  //   settleGen — bumped by run() AND retryWithStealth() AND retarget(): every path that
+  //               puts tiles back in flight. Consumers that announce progress ("checked
+  //               3 of 8", "swarm finished") re-arm on this, so a retry is narrated.
+  //
+  // phase cannot do either job: run() goes spawning → running → done and never passes
+  // back through idle, and retry/retarget mutate tiles while phase sits at 'done'. Every
+  // latch previously keyed on a phase value was therefore stuck after the first run —
+  // silent retries (no pill, no voice) and unsaved second runs.
+  const [runGen, setRunGen] = useState(0);
+  const [settleGen, setSettleGen] = useState(0);
   const fleetRef = useRef<SpawnedBrowser[]>([]);
   const targetsRef = useRef<SwarmTarget[]>([]); // kept so retry knows each tile's goal/extract
   const taskRef = useRef<string>(''); // the task label, for the report
   const tilesRef = useRef<Tile[]>([]);
   tilesRef.current = tiles; // always-latest snapshot for the report generator
-  const autoReportRef = useRef(false); // auto-open the report once per run
+  // The runGen already saved to history + auto-opened. 0 = nothing saved yet, and run()
+  // bumps runGen to 1 first, so the first run always qualifies.
+  const savedGenRef = useRef(0);
   const cancelledRef = useRef(false); // set by cancel()/reset() to halt the in-flight run
   // Per-tile generation counter, bumped by retarget(): a superseded closure (original run,
   // stealth retry, or an earlier retarget of the same slot) captures its generation at start
@@ -88,6 +140,31 @@ export function useSwarm() {
 
   // Release the fleet if the consumer unmounts mid-run.
   useEffect(() => () => releaseFleet(fleetRef.current), []);
+
+  // ...and if the TAB goes away, which the unmount effect above never sees: closing the tab or
+  // hard-refreshing tears the document down without running React cleanup, so up to 20 sessions
+  // stayed alive for the full 300s session timeout (lib/browserbase.ts), ate the 20-session
+  // concurrency cap, and made the next run fail with an unexplained 500.
+  //
+  // `pagehide` over `beforeunload`: beforeunload is unreliable on mobile Safari and is skipped
+  // entirely when a page enters the back/forward cache.
+  //
+  // This CANNOT misfire on a normal React unmount: the handler is only ever invoked by the
+  // browser at document teardown — a route change unmounts the hook, which removes the listener
+  // (and runs the effect above) without the event ever firing. The one case where pagehide fires
+  // on a page that may come BACK is a bfcache entry (`persisted: true`); we skip that, because
+  // restoring from bfcache resumes the very run whose sessions we'd have killed.
+  //
+  // Over-releasing is safe in the other direction: REQUEST_RELEASE on an already-finished
+  // session is a no-op, so firing for a completed run costs one ignored request.
+  useEffect(() => {
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (e.persisted) return; // bfcache — the page (and its run) can still come back
+      releaseFleetBeacon(fleetRef.current);
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, []);
 
   // Live elapsed timer while the swarm runs.
   useEffect(() => {
@@ -111,6 +188,15 @@ export function useSwarm() {
       setError('');
       cancelledRef.current = false;
       tileGen.current = {}; // fresh grid — no slot has been retargeted yet
+      // Open the new run's generation BEFORE any await, so every latch keyed on it re-arms
+      // on the same commit the grid resets on.
+      setRunGen((g) => g + 1);
+      setSettleGen((g) => g + 1);
+      // The previous run's report describes the previous run's tiles. Without this, a second
+      // run in the same session (no "New Session") left run 1's modal open and its cached
+      // narrative sitting on top of run 2's grid until the new synthesis landed.
+      setReportOpen(false);
+      setNarrative(null);
       setPhase('spawning');
       try {
         const res = await fetch('/api/fleet', {
@@ -157,8 +243,12 @@ export function useSwarm() {
               status = r.status;
               result = r.result;
               if (r.url) guarded({ url: r.url });
-            } catch {
+            } catch (e) {
+              // Keep the reason — an errored tile with an empty result gives the report nothing
+              // to explain (it just reads "N errors"). The message ("Browser session lost",
+              // "act() timed out", etc.) is what makes the report say WHY a target failed.
               status = 'error';
+              result = e instanceof Error ? e.message : 'run failed';
             }
             // Freeze the final frame, then release the session so it stops billing.
             const screenshotUrl = await captureFrame(browsers[i]);
@@ -208,6 +298,12 @@ export function useSwarm() {
           ms: undefined,
         }),
       );
+      // Tiles are in flight again while phase stays 'done' — re-arm the progress/announcement
+      // latches (this is the whole reason settleGen exists). Bumped HERE, batched with the
+      // flip to 'working', not at the top of the function: a bump while every tile is still
+      // settled would fire the "swarm finished" announcement a second time before the retry
+      // has even started. runGen deliberately stays put — this is the same run record.
+      setSettleGen((g) => g + 1);
 
       await Promise.allSettled(
         unresolved.map(async ({ i }, k) => {
@@ -224,8 +320,9 @@ export function useSwarm() {
             status = r.status;
             result = r.result;
             if (r.url) guarded({ url: r.url });
-          } catch {
+          } catch (e) {
             status = 'error';
+            result = e instanceof Error ? e.message : 'run failed'; // preserve the reason (see run())
           }
           const screenshotUrl = await captureFrame(browsers[k]);
           guarded({ status, result, ms: Date.now() - t0, screenshotUrl, note: undefined });
@@ -285,6 +382,10 @@ export function useSwarm() {
         note: undefined,
         url: isHttpUrl(next.startUrl) ? next.startUrl : '',
       });
+      // Same contract as the stealth retry: one slot is back in flight, so re-arm the
+      // announcement latches (batched with the flip, for the same reason), but keep runGen —
+      // a retarget edits the run in place, it does not start a new one.
+      setSettleGen((g) => g + 1);
 
       try {
         const res = await fetch('/api/fleet', {
@@ -365,28 +466,40 @@ export function useSwarm() {
 
   // Auto-open + synthesize the report the moment a run finishes (once per run), and
   // persist the run to local history (screenshots excluded — see lib/run-history).
+  // Keyed on runGen, not on phase: the old `if (phase === 'idle') autoReportRef = false`
+  // re-arm never fired, because run() goes spawning → running → done and only cancel()/
+  // reset()/an error ever set 'idle'. A second run without "New Session" was therefore
+  // never saveRun'd — it never showed up in the sidebar, and openReport served run 1's
+  // cached narrative over run 2's tiles.
   useEffect(() => {
-    if (phase === 'done' && !autoReportRef.current) {
-      autoReportRef.current = true;
-      runRecordIdRef.current = `run-${Date.now()}`;
-      saveRun({
-        id: runRecordIdRef.current,
-        ts: Date.now(),
-        task: taskRef.current,
-        tiles: compactTiles(tilesRef.current),
-      });
-      setReportOpen(true);
-      generateReport();
-    }
-    if (phase === 'idle') autoReportRef.current = false;
-  }, [phase, generateReport]);
+    if (phase !== 'done' || savedGenRef.current === runGen) return;
+    savedGenRef.current = runGen;
+    runRecordIdRef.current = `run-${Date.now()}`;
+    saveRun({
+      id: runRecordIdRef.current,
+      ts: Date.now(),
+      task: taskRef.current,
+      tiles: compactTiles(tilesRef.current),
+    });
+    setReportOpen(true);
+    generateReport();
+  }, [phase, runGen, generateReport]);
 
   // Keep the saved record honest after the run: a stealth retry or a voice retarget can
-  // change findings while phase is still 'done' — mirror those into local history.
+  // change findings while phase is still 'done' — mirror those into local history, but only
+  // once the grid has fully settled again.
+  //
+  // This effect used to patch on EVERY [tiles, phase] commit while phase === 'done', and each
+  // tile emits 2-4 of those as it settles (working flip → progress notes → url → final
+  // result). One stealth retry over 15 tiles meant ~45 synchronous JSON.stringify +
+  // localStorage.setItem of up to 20 full run records on the main thread — a visible stutter
+  // in the live grid, spent writing intermediate states nobody can read until the run is over.
+  // Gating on "nothing in flight" collapses that to a single write per retry/retarget, and it
+  // cannot drop the last write: the commit that settles the final tile IS the trigger.
   useEffect(() => {
-    if (phase === 'done' && runRecordIdRef.current) {
-      patchRun(runRecordIdRef.current, { tiles: compactTiles(tiles) });
-    }
+    if (phase !== 'done' || !runRecordIdRef.current) return;
+    if (tiles.some((t) => t.status === 'working' || t.status === 'idle')) return;
+    patchRun(runRecordIdRef.current, { tiles: compactTiles(tiles) });
   }, [tiles, phase]);
 
   // Halt the in-flight run: release the fleet now (so pending agent/extract calls fail fast),
@@ -418,12 +531,16 @@ export function useSwarm() {
     setError('');
     setReportOpen(false);
     setNarrative(null);
-    autoReportRef.current = false;
+    // savedGenRef is deliberately left alone: the next run() bumps runGen past it, which is
+    // what arms the save. Zeroing it here would be a second, redundant way to say the same
+    // thing — and the kind of "unlatch on idle" coupling that caused these bugs.
   }, []);
 
   return {
     tiles,
     phase,
+    runGen,
+    settleGen,
     elapsed,
     error,
     retrying,

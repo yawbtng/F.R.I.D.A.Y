@@ -34,8 +34,11 @@ interface FridayShellProps {
   onMicToggle?: () => void;
   /** Whether the mic is active */
   micActive?: boolean;
-  /** Callback when user selects a session from sidebar */
-  onSelectSession?: (sessionId: string) => void;
+  /** Run-record id of the past run currently open in the report modal — highlights that
+   *  card in the sidebar. Distinct from `sessionId`, which is a live browser session. */
+  activeRunId?: string;
+  /** Callback when user picks a past run in the sidebar; called with a run-record id. */
+  onSelectSession?: (runId: string) => void;
   /** Callback when user clicks New Session */
   onNewSession?: () => void;
   /** Whether a session is being created */
@@ -122,7 +125,7 @@ export function FridayShell(props: FridayShellProps) {
               className="hidden md:block flex-shrink-0 overflow-hidden"
             >
               <div className="h-full w-[280px]">
-                <SessionSidebar collapsed={false} activeSessionId={props.sessionId} onSelectSession={props.onSelectSession} onNewSession={props.onNewSession} />
+                <SessionSidebar collapsed={false} activeSessionId={props.activeRunId} onSelectSession={props.onSelectSession} onNewSession={props.onNewSession} />
               </div>
             </motion.div>
           )}
@@ -148,7 +151,7 @@ export function FridayShell(props: FridayShellProps) {
                 exit={{ x: '-100%' }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
-                <SessionSidebar collapsed={false} activeSessionId={props.sessionId} onSelectSession={props.onSelectSession} onNewSession={props.onNewSession} />
+                <SessionSidebar collapsed={false} activeSessionId={props.activeRunId} onSelectSession={props.onSelectSession} onNewSession={props.onNewSession} />
               </motion.div>
             </>
           )}

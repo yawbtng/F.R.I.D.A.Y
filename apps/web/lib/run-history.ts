@@ -28,6 +28,14 @@ export interface RunRecord {
 const KEY = 'friday.runs.v1';
 const MAX_RUNS = 20;
 
+/** localStorage writes don't trigger React re-renders in the same tab, and the `storage`
+ *  event only fires cross-tab. This custom event lets the sidebar refresh the run list the
+ *  moment a run is saved or patched in THIS tab. */
+export const RUNS_EVENT = 'friday:runs-changed';
+function notifyChanged(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(RUNS_EVENT));
+}
+
 /** Strip a live tile down to its persistable findings (no screenshots, tokens, or urls). */
 export function compactTiles(tiles: Tile[]): RunRecordTile[] {
   return tiles.map((t) => ({ label: t.label, status: t.status, result: t.result, ms: t.ms }));
@@ -61,6 +69,7 @@ function write(runs: RunRecord[]): void {
 export function saveRun(record: RunRecord): void {
   if (typeof window === 'undefined') return;
   write([record, ...loadRuns().filter((r) => r.id !== record.id)]);
+  notifyChanged();
 }
 
 /** Merge fields into an existing record — used as the narrative lands or a retarget
@@ -68,4 +77,5 @@ export function saveRun(record: RunRecord): void {
 export function patchRun(id: string, patch: Partial<Omit<RunRecord, 'id'>>): void {
   if (typeof window === 'undefined') return;
   write(loadRuns().map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  notifyChanged();
 }
