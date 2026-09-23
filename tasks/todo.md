@@ -68,3 +68,48 @@
 ## Lessons Learned
 - **Be explicit about tool limitations**: If user asks to use an external tool (like `ao`) that I can't execute, say so immediately. Don't silently substitute with a different mechanism. Explain the tradeoff and let the user decide.
 - **Don't fake familiarity**: Knowing about a tool ≠ having access to it. Acknowledge the difference upfront.
+
+---
+
+## ⚠️ Post-merge verification — PR #43 (merged 2026-09-22, `fca8358`) — NOT DONE
+
+**Merged deliberately without live testing.** 236 unit tests pass and `tsc` is clean,
+but **nothing on this PR has been run against a real Browserbase session or a real
+mic.** The four recovered commits were live-verified back on 2026-08-02 (8-company
+KYB, 8/8 active in ~23-34s, twice, 18.8s proxy-free); the **six fix commits are
+hand-traced only.**
+
+Run these before recording any demo. Per the testing policy, capture output to a
+file so each run leaves a repeatable artifact.
+
+### Headless — `apps/web/scripts/verify-plan.ts` (same `runTarget` path as the grid)
+- [ ] **KYB doubled legal suffix.** A target labelled `"Church & Dwight Co., Inc."`
+      must come back **active**, not notfound. This was the demo-critical bug in
+      `26c377f` — `entityOf` stripped one suffix, EDGAR didn't match the fragment,
+      and KYB skips the retry, so the report confidently called an S&P 500 company
+      unregistered. Also spot-check `Deere & Company` and
+      `Brookfield Renewable Partners L.P.`
+- [ ] **`subject` fallback.** A fact plan where the planner omits `subject` must
+      still route off the label exactly as before (`2af1afc`). The LLM will omit it.
+- [ ] **Split attempt budget** (`f61c9cd`). A target whose agent runs long must still
+      get its extract — previously one `AbortSignal` covered both calls, so an agent
+      returning at 51s handed the extract 4s and a found answer became an error.
+
+### Needs a browser + dev server (UI-state timing — cannot be verified headless)
+- [ ] **Second run without New Session** (`78946bc`, `621014e`). Run A (8 targets) →
+      completes → run B (3 targets). Expect: full pill stream, FRIDAY *speaks* the
+      result, run B appears in the sidebar with **its own** narrative. Before the fix
+      run B was silent and never saved.
+- [ ] **Stealth retry** (`621014e`). Finish a run with blocked tiles → click the
+      shield. Expect pills + a spoken finish. Before: total silence, forever.
+      ⚠️ Also confirms the proxy cost path — a retry over N blocked tiles spawns
+      **N metered residential sessions** ($12/GB). Deliberate; know it before clicking.
+- [ ] **Session release on tab close** (`f61c9cd`). Start a run, close the tab
+      mid-flight, confirm sessions actually end rather than sitting for 300s.
+
+### Known-open, unrelated to this PR
+- [ ] Unresolved #1 — **voice never triggers execution.** Root-caused, reproduced
+      twice, untouched by this PR. Needs live mic work.
+- [ ] Unresolved #3 — **no proxies** is an infra/billing decision, not a code fix.
+- [ ] `factGoal`'s no-article mitigation is prompt-level and **unprobed**; `subject`
+      is the durable fix, the prompt is only the net when the planner omits it.
