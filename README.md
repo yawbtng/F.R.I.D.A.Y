@@ -6,9 +6,6 @@ Most web work is the same lookup repeated across a dozen sites — verifying ven
 
 The anchor use case is verification — *"are these 15 businesses real and active?"* — but the engine is general-purpose. One voice command, twenty browsers, one report.
 
-<!-- DEMO VIDEO: embed here -->
-> 🎬 **Demo video coming here.**
-
 ## What she can do
 
 - **Voice-to-swarm**: "Verify these are real businesses: Tesla, Apple, Stripe…" → an LLM plans one target per browser → the fleet launches on your go-ahead
